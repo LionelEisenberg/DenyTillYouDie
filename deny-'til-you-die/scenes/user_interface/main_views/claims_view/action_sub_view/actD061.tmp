@@ -1,0 +1,69 @@
+[gd_scene load_steps=4 format=3 uid="uid://on1i4lh8ixu8"]
+
+[ext_resource type="Script" path="res://scenes/user_interface/main_views/claims_view/action_sub_view/approve_button.gd" id="1_dplkk"]
+[ext_resource type="Script" path="res://scenes/user_interface/main_views/claims_view/action_sub_view/deny_button.gd" id="2_a0ktv"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nav38"]
+
+[node name="ActionSubView" type="HBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+
+[node name="SpacerPanel" type="Panel" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_nav38")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 3.33
+
+[node name="ApproveButton" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "View3"
+script = ExtResource("1_dplkk")
+
+[node name="ProgressBar" type="ProgressBar" parent="HBoxContainer/ApproveButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+show_percentage = false
+
+[node name="ApprovalTimer" type="Timer" parent="HBoxContainer/ApproveButton"]
+
+[node name="DenyButton" type="Button" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "View4"
+script = ExtResource("2_a0ktv")
+
+[node name="ProgressBar" type="ProgressBar" parent="HBoxContainer/DenyButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+show_percentage = false
+
+[node name="DenialTimer" type="Timer" parent="HBoxContainer/DenyButton"]
+
+[node name="Button5" type="Button" parent="HBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "View4"
+
+[node name="SpacerPanel2" type="Panel" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_nav38")

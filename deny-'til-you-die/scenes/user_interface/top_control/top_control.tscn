@@ -1,0 +1,98 @@
+[gd_scene load_steps=5 format=3 uid="uid://c0pvvgnlrmnhw"]
+
+[ext_resource type="Script" path="res://scenes/user_interface/top_control/money_label.gd" id="1_b5kfb"]
+[ext_resource type="Script" path="res://scenes/user_interface/top_control/objective_label.gd" id="1_s8lbv"]
+[ext_resource type="Script" path="res://scenes/user_interface/top_control/goodwill_label.gd" id="2_y127d"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lb3h6"]
+
+[node name="TopControl" type="HBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="ObjectiveControl" type="Panel" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_lb3h6")
+
+[node name="ObjectiveLabel" type="Label" parent="ObjectiveControl"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -11.5
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+text = "OBJECTIVE"
+script = ExtResource("1_s8lbv")
+
+[node name="ResourceControl" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="ResourceControl"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MoneyLabel" type="Label" parent="ResourceControl/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 6
+size_flags_vertical = 6
+text = "MONEY"
+script = ExtResource("1_b5kfb")
+
+[node name="GoodwillLabel" type="Label" parent="ResourceControl/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 6
+size_flags_vertical = 6
+text = "GOODWILL
+"
+script = ExtResource("2_y127d")
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="ResourceControl"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Gold" type="Label" parent="ResourceControl/HBoxContainer2"]
+layout_mode = 2
+size_flags_horizontal = 6
+size_flags_vertical = 6
+text = "RESOURCE	"
+
+[node name="Label2" type="Label" parent="ResourceControl/HBoxContainer2"]
+layout_mode = 2
+size_flags_horizontal = 6
+size_flags_vertical = 6
+text = "RESOURCE	"
+
+[node name="PrestigeControl" type="Panel" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_lb3h6")
+
+[node name="PrestigeLabel" type="Label" parent="PrestigeControl"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -11.5
+offset_right = 20.0
+offset_bottom = 11.5
+grow_horizontal = 2
+grow_vertical = 2
+text = "PRESTIGE"

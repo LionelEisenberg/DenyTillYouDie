@@ -1,0 +1,10 @@
+[gd_resource type="Theme" load_steps=3 format=3 uid="uid://dd1nbgn4y88qo"]
+
+[ext_resource type="StyleBox" uid="uid://bsys8xxky7tch" path="res://assets/styles/style_box_flat/grey_panel.tres" id="1_tyce8"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_kb3h5"]
+
+[resource]
+Button/styles/focus = SubResource("StyleBoxEmpty_kb3h5")
+LinkButton/font_sizes/font_size = 28
+Panel/styles/panel = ExtResource("1_tyce8")

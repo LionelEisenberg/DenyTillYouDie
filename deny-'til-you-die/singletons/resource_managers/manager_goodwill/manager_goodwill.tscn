@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://1mldfk14qmx0"]
+
+[ext_resource type="Script" path="res://singletons/resource_managers/manager_goodwill/manager_goodwill.gd" id="1_jp62y"]
+
+[node name="ManagerGoodwill" type="Node"]
+script = ExtResource("1_jp62y")

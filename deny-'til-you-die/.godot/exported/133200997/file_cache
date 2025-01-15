@@ -1,0 +1,16 @@
+res://addons/randomnamesgenerator/v_box_container.tscn::c4d420c29bf8dab28d1d4803e4cdd330::1680713450::res://.godot/exported/133200997/export-1b8ad9011c39f35ad7db4ce4a8b09dac-v_box_container.scn
+res://assets/styles/style_box_flat/grey_panel.tres::579ad7b703f1e544b9ef1120bddd7d1f::1736657424::res://.godot/exported/133200997/export-146e132e4a9f8bcd95b09ea71a5f5051-grey_panel.res
+res://assets/themes/default_theme.tres::57da62bc1c6eb0b9ea6a76d853cac361::1736657424::res://.godot/exported/133200997/export-0deb915efc27792ca9a832e26a57293b-default_theme.res
+res://scenes/user_interface/main_views/claims_view/action_sub_view/action_sub_view.tscn::10e6ab25bb0f0fe0295c170c566aa5a5::1736674047::res://.godot/exported/133200997/export-4aef59392e2e8b1f4a1ca81bc0f5ff45-action_sub_view.scn
+res://scenes/user_interface/main_views/claims_view/claims_sub_view/claim.tscn::bac152d1e59a0f8f0055866a66a0f2f5::1736674047::res://.godot/exported/133200997/export-f443a0984041fa01d05aef9b51cff5fe-claim.scn
+res://scenes/user_interface/main_views/claims_view/claims_view.tscn::520ff414b292e2d098712daa3ece5ccf::1736674047::res://.godot/exported/133200997/export-9af3d9d481e03a5db194735ebeb61617-claims_view.scn
+res://scenes/user_interface/main_view_tab_container/main_view_tab_container.tscn::208f7227e3045b4c314daae6ee88b453::1736674047::res://.godot/exported/133200997/export-7fceb3ff0387d1e823c7fadeb1e3fbe9-main_view_tab_container.scn
+res://scenes/user_interface/navigation_control/navigation_control.tscn::2ae9fae3c5642fd1cd3a7c6fde44ce4c::1736674047::res://.godot/exported/133200997/export-8ec48801014bc6ab5ad674cea382e015-navigation_control.scn
+res://scenes/user_interface/navigation_control/navigation_control_test.tscn::7baeb36dbd876d4c1e9178875bb1f66f::1736645834::res://.godot/exported/133200997/export-66b2a96c3f1cdefc7383f1337d18a567-navigation_control_test.scn
+res://scenes/user_interface/top_control/top_control.tscn::221191a8adc2c2b27256986abf32599f::1736674047::res://.godot/exported/133200997/export-5b56a400273512a3d2f0b5052bbc689a-top_control.scn
+res://scenes/user_interface/user_interface.tscn::f1690dc59936a5da3fb598af3e677410::1736674047::res://.godot/exported/133200997/export-b1d5c8b17a51103fd0d46ba667665600-user_interface.scn
+res://singletons/game/game.tscn::93cb4cc5156f2e7361b4af429354896a::1736674047::res://.godot/exported/133200997/export-c3f1f49d2a36cde0bbd3e701a587af66-game.scn
+res://singletons/manager_claim/manager_claim.tscn::90aaec23c990c8cea575322fdd2dfaf3::1736674047::res://.godot/exported/133200997/export-e065bf91271d40633bcf49f4b5c7fee5-manager_claim.scn
+res://singletons/resource_managers/manager_goodwill/manager_goodwill.tscn::125bd15f61fa1482eeab1270b6210741::1736650321::res://.godot/exported/133200997/export-0c19c5a8b0ff67f7de8f2da76ed4b16d-manager_goodwill.scn
+res://singletons/resource_managers/manager_money/manager_money.tscn::1f30b6a73a73a53fc2ccbbe266086b52::1736674047::res://.godot/exported/133200997/export-5bc554060099564280f8d4ef2d0a41dd-manager_money.scn
+res://singletons/signal_bus/signal_bus.tscn::f12ffe55db225b0614ac25d1138c94de::1736663806::res://.godot/exported/133200997/export-26ac3b9ab6aa4dc812d16e93f4491948-signal_bus.scn

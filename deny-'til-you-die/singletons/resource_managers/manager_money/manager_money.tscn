@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://d1e8hj236sxln"]
+
+[ext_resource type="Script" path="res://singletons/resource_managers/manager_money/manager_money.gd" id="1_kwjhu"]
+
+[node name="ManagerMoney" type="Node"]
+script = ExtResource("1_kwjhu")

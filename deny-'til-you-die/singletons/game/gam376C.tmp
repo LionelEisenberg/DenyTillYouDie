@@ -1,0 +1,33 @@
+[gd_scene load_steps=9 format=3 uid="uid://ct63mfhg8lgo2"]
+
+[ext_resource type="PackedScene" uid="uid://d1e8hj236sxln" path="res://singletons/resource_managers/manager_money/manager_money.tscn" id="1_gjwyw"]
+[ext_resource type="Script" path="res://singletons/game/game.gd" id="1_n2dod"]
+[ext_resource type="PackedScene" uid="uid://huf4kq088bkx" path="res://scenes/user_interface/user_interface.tscn" id="1_tjmw1"]
+[ext_resource type="PackedScene" uid="uid://1mldfk14qmx0" path="res://singletons/resource_managers/manager_goodwill/manager_goodwill.tscn" id="2_awrio"]
+[ext_resource type="PackedScene" uid="uid://4y2dqbguhdxp" path="res://singletons/signal_bus/signal_bus.tscn" id="3_14nos"]
+[ext_resource type="Script" path="res://singletons/signal_bus/signal_bus.gd" id="4_r08it"]
+[ext_resource type="PackedScene" uid="uid://tmt6iopbp2ii" path="res://singletons/manager_claim/manager_claim.tscn" id="6_x7chv"]
+[ext_resource type="Script" path="res://singletons/manager_claim/manager_claim.gd" id="7_ixy22"]
+
+[node name="Game" type="Node"]
+script = ExtResource("1_n2dod")
+restart = false
+
+[node name="SaveTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 0.5
+autostart = true
+
+[node name="Singletons" type="Node" parent="."]
+
+[node name="ManagerGoodwill" parent="Singletons" instance=ExtResource("2_awrio")]
+
+[node name="ManagerMoney" parent="Singletons" instance=ExtResource("1_gjwyw")]
+
+[node name="SignalBus" parent="Singletons" instance=ExtResource("3_14nos")]
+script = ExtResource("4_r08it")
+
+[node name="ManagerClaim" parent="Singletons" instance=ExtResource("6_x7chv")]
+script = ExtResource("7_ixy22")
+
+[node name="UserInterface" parent="." instance=ExtResource("1_tjmw1")]

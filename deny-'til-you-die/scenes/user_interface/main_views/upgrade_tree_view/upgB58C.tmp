@@ -1,0 +1,76 @@
+[gd_scene load_steps=3 format=3 uid="uid://sj6a4gq6uwew"]
+
+[ext_resource type="PackedScene" uid="uid://c4lymdfmr77uf" path="res://scenes/user_interface/main_views/upgrade_tree_view/upgrade_button/upgrade_button.tscn" id="1_4lw1u"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kbvms"]
+bg_color = Color(0.6, 0.6, 0.6, 0.14902)
+
+[node name="UpgradeTreeView" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_tab_index = 1
+
+[node name="Panel" type="Panel" parent="."]
+unique_name_in_owner = true
+z_index = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_kbvms")
+
+[node name="UpgradeButton" parent="Panel" instance=ExtResource("1_4lw1u")]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -20.0
+offset_top = -99.0
+offset_right = 20.0
+offset_bottom = -59.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="UpgradeButton" parent="Panel/UpgradeButton" instance=ExtResource("1_4lw1u")]
+layout_mode = 0
+offset_left = 128.0
+offset_top = -104.0
+offset_right = 168.0
+offset_bottom = -64.0
+disabled = true
+upgrade_id = 1
+
+[node name="UpgradeButton" parent="Panel/UpgradeButton/UpgradeButton" instance=ExtResource("1_4lw1u")]
+layout_mode = 0
+offset_left = -64.0
+offset_top = -79.0
+offset_right = -24.0
+offset_bottom = -39.0
+disabled = true
+upgrade_id = 3
+
+[node name="UpgradeButton2" parent="Panel/UpgradeButton/UpgradeButton" instance=ExtResource("1_4lw1u")]
+layout_mode = 0
+offset_left = 64.0
+offset_top = -80.0
+offset_right = 104.0
+offset_bottom = -40.0
+disabled = true
+upgrade_id = 4
+
+[node name="UpgradeButton2" parent="Panel/UpgradeButton" instance=ExtResource("1_4lw1u")]
+layout_mode = 0
+offset_left = -128.0
+offset_top = -104.0
+offset_right = -88.0
+offset_bottom = -64.0
+disabled = true
+upgrade_id = 2

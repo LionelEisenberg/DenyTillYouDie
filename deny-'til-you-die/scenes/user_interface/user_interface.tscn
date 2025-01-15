@@ -1,0 +1,39 @@
+[gd_scene load_steps=6 format=3 uid="uid://huf4kq088bkx"]
+
+[ext_resource type="PackedScene" uid="uid://c0pvvgnlrmnhw" path="res://scenes/user_interface/top_control/top_control.tscn" id="1_4d4cc"]
+[ext_resource type="Script" path="res://scenes/user_interface/user_interface.gd" id="1_ir0y4"]
+[ext_resource type="PackedScene" uid="uid://ddnooo4ucqr6u" path="res://scenes/user_interface/navigation_control/navigation_control.tscn" id="2_nidyv"]
+[ext_resource type="PackedScene" uid="uid://df3ibarqjj1u2" path="res://scenes/user_interface/main_view_tab_container/main_view_tab_container.tscn" id="3_ssblf"]
+[ext_resource type="PackedScene" uid="uid://by746vwyq87v8" path="res://scenes/user_interface/unlock_popup/unlock_popup.tscn" id="5_0ara1"]
+
+[node name="UserInterface" type="Panel"]
+z_index = -2
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ir0y4")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopControl" parent="VBoxContainer" instance=ExtResource("1_4d4cc")]
+layout_mode = 2
+
+[node name="NavigationControl" parent="VBoxContainer" instance=ExtResource("2_nidyv")]
+layout_mode = 2
+
+[node name="MainViewTabContainer" parent="VBoxContainer" instance=ExtResource("3_ssblf")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_stretch_ratio = 3.33
+
+[node name="UnlockPopup" parent="." instance=ExtResource("5_0ara1")]
+visible = false
+layout_mode = 1

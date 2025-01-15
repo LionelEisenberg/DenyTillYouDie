@@ -1,0 +1,71 @@
+[gd_scene load_steps=3 format=3 uid="uid://ddnooo4ucqr6u"]
+
+[ext_resource type="Script" path="res://scenes/user_interface/navigation_control/navigation_button.gd" id="1_lyg2h"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_iywf3"]
+
+[node name="NavigationControl" type="HBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.25
+
+[node name="SpacerPanel" type="Panel" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_iywf3")
+
+[node name="ButtonPanel" type="Panel" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 4.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_iywf3")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="ButtonPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Claims" type="Button" parent="ButtonPanel/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Claims"
+script = ExtResource("1_lyg2h")
+
+[node name="Upgrades" type="Button" parent="ButtonPanel/HBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+disabled = true
+text = "Upgrades"
+script = ExtResource("1_lyg2h")
+view_to_show = 1
+
+[node name="Button3" type="Button" parent="ButtonPanel/HBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "View3"
+
+[node name="Button4" type="Button" parent="ButtonPanel/HBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "View4"
+
+[node name="Button5" type="Button" parent="ButtonPanel/HBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "View4"
+
+[node name="SpacerPanel2" type="Panel" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_iywf3")

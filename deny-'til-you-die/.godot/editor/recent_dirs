@@ -1,0 +1,15 @@
+res://scenes/user_interface/main_views/upgrade_tree_view/upgrade_tooltip_container
+res://scenes/user_interface/main_views/upgrade_tree_view/upgrade_button
+res://scenes/user_interface/main_views/upgrade_tree_view
+res://singletons/manager_objective
+res://scenes/user_interface/unlock_popup
+C:/Users/lione/Documents/Godot Games/deny-'til-you-die
+res://scenes/user_interface/main_views/claims_view/claims_sub_view
+res://singletons/resource_managers/manager_goodwill
+res://scenes/user_interface/main_views/claims_view/action_sub_view
+res://scenes/user_interface/main_views/claims_view
+res://scenes/user_interface/main_view_tab_container
+res://assets/themes
+res://scenes/user_interface/navigation_control
+res://scenes/user_interface/top_control
+res://singletons/game

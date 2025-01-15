@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3 uid="uid://df3ibarqjj1u2"]
+
+[ext_resource type="PackedScene" uid="uid://dxdcfmkk2f0w6" path="res://scenes/user_interface/main_views/claims_view/claims_view.tscn" id="1_7ihc4"]
+[ext_resource type="PackedScene" uid="uid://sj6a4gq6uwew" path="res://scenes/user_interface/main_views/upgrade_tree_view/upgrade_tree_view.tscn" id="2_33351"]
+
+[node name="MainViewControl" type="TabContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(1.00122, 1)
+size_flags_vertical = 3
+size_flags_stretch_ratio = 2.5
+current_tab = 0
+tabs_visible = false
+all_tabs_in_front = true
+
+[node name="ClaimsView" parent="." instance=ExtResource("1_7ihc4")]
+layout_mode = 2
+
+[node name="UpgradeTreeView" parent="." instance=ExtResource("2_33351")]
+visible = false
+layout_mode = 2

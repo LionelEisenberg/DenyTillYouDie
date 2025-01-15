@@ -1,0 +1,47 @@
+[gd_scene load_steps=4 format=3 uid="uid://dxdcfmkk2f0w6"]
+
+[ext_resource type="Script" path="res://scenes/user_interface/main_views/claims_view/claims_sub_view/claim_label.gd" id="1_begw4"]
+[ext_resource type="PackedScene" uid="uid://on1i4lh8ixu8" path="res://scenes/user_interface/main_views/claims_view/action_sub_view/action_sub_view.tscn" id="1_l68pr"]
+[ext_resource type="Script" path="res://scenes/user_interface/main_views/claims_view/claim_view.gd" id="2_sftll"]
+
+[node name="ClaimsView" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+metadata/_tab_index = 0
+
+[node name="ClaimSubView" type="HBoxContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.33
+
+[node name="Control" type="Control" parent="ClaimSubView"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ClaimLabel" type="Label" parent="ClaimSubView/Control"]
+layout_mode = 2
+offset_left = 4.0
+offset_top = 402.0
+offset_right = 105.0
+offset_bottom = 425.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "CLAIM LABEL"
+script = ExtResource("1_begw4")
+
+[node name="ClaimView" type="Control" parent="ClaimSubView"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.61
+script = ExtResource("2_sftll")
+
+[node name="Control2" type="Control" parent="ClaimSubView"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ActionSubView" parent="." instance=ExtResource("1_l68pr")]
+layout_mode = 2
