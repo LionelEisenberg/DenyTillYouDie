@@ -17,6 +17,10 @@ func is_feature_unlocked(feature : FeatureEnums.Feature) -> bool:
 			return save_game_data.unlock_data.denial_unlocked
 		FeatureEnums.Feature.MONEY_UPGRADES:
 			return save_game_data.unlock_data.money_upgrades_unlocked
+		FeatureEnums.Feature.FRIVOLOUS_CLAIM_TYPE:
+			return save_game_data.unlock_data.frivolous_claim_type_unlocked
+		FeatureEnums.Feature.TRAGIC_CLAIM_TYPE:
+			return save_game_data.unlock_data.tragic_claim_type_unlocked
 		_:
 			return false
 
@@ -27,6 +31,12 @@ func unlock_feature(feature: FeatureEnums.Feature) -> void:
 			save_game_data.unlock_data.denial_unlocked = true
 		FeatureEnums.Feature.MONEY_UPGRADES:
 			save_game_data.unlock_data.money_upgrades_unlocked = true
+		FeatureEnums.Feature.FRIVOLOUS_CLAIM_TYPE:
+			save_game_data.unlock_data.frivolous_claim_type_unlocked = true
+			ManagerClaim.ref.unlock_claim_type(ClaimEnums.ClaimType.FRIVOLOUS)
+		FeatureEnums.Feature.TRAGIC_CLAIM_TYPE:
+			save_game_data.unlock_data.tragic_claim_type_unlocked = true
+			ManagerClaim.ref.unlock_claim_type(ClaimEnums.ClaimType.TRAGIC)
 		_:
 			pass
 	feature_unlocked.emit(feature)

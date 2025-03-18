@@ -4,6 +4,7 @@ enum ConsequenceType {
 	GET_MONEY,
 	GET_GOODWILL,
 	SPEND_GOODWILL,
+	SPEND_MONEY,
 	START_EVENT
 }
 

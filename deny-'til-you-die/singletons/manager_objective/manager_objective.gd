@@ -12,6 +12,7 @@ func _init() -> void:
 var current_objective : Objective 
 
 signal objective_completed(objective : Objective)
+signal objective_updated(objective: Objective, progress: int)
 
 func get_current_obejctive() -> Objective:
 	return current_objective
@@ -32,6 +33,7 @@ func _initialize_objective() -> void:
 			return
 
 func _process_current_objective() -> void:
+	objective_updated.emit(current_objective, _get_objective_progress(current_objective))
 	if !_check_condition(current_objective):
 		return  # The current objective is not yet completed
 
@@ -51,13 +53,7 @@ func _process_current_objective() -> void:
 	objective_completed.emit(current_objective)
 
 func _check_condition(objective : Objective) -> bool:
-	var condition_value = objective.condition_value
-	match objective.condition_type:
-		GameEnums.ConditionType.APPROVE_CLAIMS:
-			return save_game_data.claim_data.num_claims_approved >= condition_value
-		GameEnums.ConditionType.DENY_CLAIMS:
-			return save_game_data.claim_data.num_claims_denied >= condition_value
-	return false
+	return _get_objective_progress(objective) >= objective.condition_value
 
 func _execute_consequence(objective : Objective):
 	match objective.consequence_type:
@@ -88,3 +84,11 @@ func _on_claim_update(claim : Claim) -> void:
 
 func _should_check_objective(condition_type: GameEnums.ConditionType) -> bool:
 	return current_objective.condition_type == condition_type
+
+func _get_objective_progress(objective: Objective) -> int:
+	match objective.condition_type:
+		GameEnums.ConditionType.APPROVE_CLAIMS:
+			return save_game_data.claim_data.num_claims_approved
+		GameEnums.ConditionType.DENY_CLAIMS:
+			return save_game_data.claim_data.num_claims_denied
+	return 0  # Default to 0 if condition type not handled

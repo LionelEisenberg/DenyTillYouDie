@@ -8,7 +8,7 @@ enum ClaimStatus {
 
 enum ClaimType {
 	STANDARD,
-	PRE_EXISTING_CONDITION,
+	TRAGIC,
 	FRIVOLOUS,
 	EXPERIMENTAL_TREATMENT
 }

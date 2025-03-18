@@ -1,4 +1,6 @@
-res://scenes/user_interface/main_views/upgrade_tree_view/upgrade_tooltip_container
+res://assets/fonts
+res://singletons/game
+res://scenes/user_interface/top_control
 res://scenes/user_interface/main_views/upgrade_tree_view/upgrade_button
 res://scenes/user_interface/main_views/upgrade_tree_view
 res://singletons/manager_objective
@@ -11,5 +13,3 @@ res://scenes/user_interface/main_views/claims_view
 res://scenes/user_interface/main_view_tab_container
 res://assets/themes
 res://scenes/user_interface/navigation_control
-res://scenes/user_interface/top_control
-res://singletons/game

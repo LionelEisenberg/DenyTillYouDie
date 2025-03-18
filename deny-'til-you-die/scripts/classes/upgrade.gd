@@ -12,19 +12,19 @@ var consequence_value: Variant
 
 
 func _init(
-	upgrade_id: UpgradeEnums.UpgradeID,
-	name: String,
-	description: String,
-	cost: Cost,
-	max_level,
-	consequence_type: GameEnums.ConsequenceType,
-	consequence_value: Variant,
-	children: Array[UpgradeEnums.UpgradeID] = []):
-		self.upgrade_id = upgrade_id
-		self.name = name
-		self.description = description
-		self.cost = cost
-		self.max_level = max_level
-		self.consequence_type = consequence_type
-		self.consequence_value = consequence_value
-		self.children = children
+	_upgrade_id: UpgradeEnums.UpgradeID,
+	_name: String,
+	_description: String,
+	_cost: Cost,
+	_max_level,
+	_consequence_type: GameEnums.ConsequenceType,
+	_consequence_value: Variant,
+	_children: Array[UpgradeEnums.UpgradeID] = []):
+		self.upgrade_id = _upgrade_id
+		self.name = _name
+		self.description = _description
+		self.cost = _cost
+		self.max_level = _max_level
+		self.consequence_type = _consequence_type
+		self.consequence_value = _consequence_value
+		self.children = _children

@@ -1,0 +1,53 @@
+[gd_scene load_steps=4 format=3 uid="uid://b0jml76drvu25"]
+
+[ext_resource type="Script" path="res://scenes/user_interface/top_control/goodwill_meter/goodwill_meter.gd" id="1_2y5rn"]
+[ext_resource type="Texture2D" uid="uid://cyyslrwp05ofp" path="res://assets/textures/gauge_background.png" id="2_ykh3s"]
+[ext_resource type="Texture2D" uid="uid://dqdbbtff10pgr" path="res://assets/textures/meter_needle-removebg-preview.png" id="3_1qp26"]
+
+[node name="GoodwillMeter" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+script = ExtResource("1_2y5rn")
+
+[node name="Gauge" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(120, 80)
+layout_direction = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_ykh3s")
+expand_mode = 1
+
+[node name="Needle" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(960, 1080)
+
+[node name="Container2" type="Control" parent="Needle"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Needle" type="TextureRect" parent="Needle"]
+custom_minimum_size = Vector2(120, 80)
+layout_direction = 1
+layout_mode = 2
+size_flags_horizontal = 3
+texture = ExtResource("3_1qp26")
+expand_mode = 1
+
+[node name="Container" type="Control" parent="Needle"]
+layout_mode = 2
+size_flags_horizontal = 3

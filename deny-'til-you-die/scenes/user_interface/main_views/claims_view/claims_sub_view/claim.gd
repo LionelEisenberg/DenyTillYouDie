@@ -5,6 +5,8 @@ const TOO_YOUNG = "bruh they're a child..."
 const TOO_OLD = "bruh they're ancient..."
 
 @onready var claim_description_label : RichTextLabel = %ClaimDescription
+@onready var claim_level_texture : TextureRect = $MarginContainer/ClaimLevel
+@onready var claim_type_texture : TextureRect = $MarginContainer/ClaimType
 
 var claim_title : String
 var claimant_name : String
@@ -24,6 +26,8 @@ var denial_consequences: Array[ClaimConsequence]
 func _ready() -> void:
 	claim_description_label.bbcode_enabled = true
 	_update_text()
+	_update_claim_level()
+	_update_claim_type()
 
 func construct_claim(
 	_claim_title : String, 
@@ -124,23 +128,81 @@ func dict2inst(dict: Dictionary) -> Claim:
 	return self
 
 func _generate_label_description() -> String:
-	return "[center][b]" + self.claim_title + "[/b][/center]
-	[b]Claim Form[/b]
+	var bbcode_text = ""
 
-	[b]Claimant:[/b] " + self.claimant_name + "
-	[b]Age:[/b] " + str(self.claimant_age) + "
-	[b]Occupation:[/b] " + self.claimant_occupation + "
-	[b]Claim Number:[/b] " + self.claim_number + "
+	# Claim Title (Large and bold with outline, using AvenirLTStd-Black.otf)
+	bbcode_text += "[center][font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=50][outline_size=6]%s[/outline_size][/font_size][/font][/center]\n\n" % claim_title 
 
-	[b]Claim Description:[/b]
-	[i]" + self.claim_description + "[/i]
+	# Claimant Information (using claim_description.ttf with subtitle font for labels)
+	bbcode_text += "[font=res://assets/fonts/claim/AvenirLTStd-Heavy.otf][font_size=18]"
+	bbcode_text += "[font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=24][outline_size=3]Claimant:[/outline_size][/font_size][/font] " + self.claimant_name + "\n"
+	bbcode_text += "[font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=24][outline_size=3]Age:[/outline_size][/font_size][/font] " + str(self.claimant_age) + "\n"
+	bbcode_text += "[font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=24][outline_size=3]Occupation:[/outline_size][/font_size][/font] " + self.claimant_occupation + "\n"
+	bbcode_text += "[font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=24][outline_size=3]Claim Number:[/outline_size][/font_size][/font] " + self.claim_number + "\n\n"
 
-	[b]Requested Coverage:[/b]
-	[i]" + str(self.claim_coverage) + "[/i]
+	# Claim Description (using claim_description.ttf)
+	bbcode_text += "[font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=24][outline_size=3]Claim Description:[/outline_size][/font_size][/font]\n"
+	bbcode_text += "[i]" + self.claim_description + "[/i]\n\n"
 
-	[b]Notes:[/b]
-	[i]" + self.notes + "[/i]
-	[i]" + str(self.approval_consequences) + "[/i]"
+	# Requested Coverage (using claim_description.ttf)
+	bbcode_text += "[font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=24][outline_size=3]Requested Coverage:[/outline_size][/font_size][/font]\n"
+	bbcode_text += "[i]" + str(self.claim_coverage) + "[/i]\n\n"
 
+	# Notes (using claim_description.ttf)
+	bbcode_text += "[font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=24][outline_size=3]Notes:[/outline_size][/font_size][/font]\n"
+	bbcode_text += "[i]" + self.notes + "[/i]\n"
+
+	bbcode_text += "[/font_size][/font]"  # Close the font and size tags
+
+	return bbcode_text
+	
 func _update_text() -> void:
 	claim_description_label.text = _generate_label_description()
+	pass
+
+func _update_claim_level() -> void:
+	claim_level_texture.texture = load("res://assets/textures/numbers/icons8-"+ str(ManagerClaim.ref.get_claim_level()) +"-100.png")
+
+func _update_claim_type() -> void:
+	match self.claim_type:
+		ClaimEnums.ClaimType.FRIVOLOUS:
+			claim_type_texture.texture = load("res://assets/textures/claims/claim_types/frivolous_stamp.png")
+			claim_type_texture.visible = true
+		ClaimEnums.ClaimType.TRAGIC:
+			claim_type_texture.texture = load("res://assets/textures/claims/claim_types/tragic_stamp.png")
+			claim_type_texture.visible = true
+		_:
+			claim_type_texture.visible = false
+
+func _generate_approval_tooltip_text() -> String:
+	var bbcode_text : String = ""
+	var approval_bbcode = consequences_to_bbcode(approval_consequences)
+	if approval_bbcode:  # Only add if there are consequences
+		bbcode_text += "\n[center]" + approval_bbcode + "[/center]"
+
+	return bbcode_text
+
+func _generate_denial_tooltip_text() -> String:
+	var bbcode_text : String = ""
+	var denial_bbcode = consequences_to_bbcode(denial_consequences)
+	if denial_bbcode:  # Only add if there are consequences
+		bbcode_text += "\n[center]" + denial_bbcode + "[/center]"
+	
+	return bbcode_text
+
+static func consequences_to_bbcode(consequences: Array[ClaimConsequence]) -> String:
+	var bbcode_text : String = ""
+	for consequence in consequences:
+		match consequence.type:
+			ClaimConsequence.ConsequenceType.GET_MONEY:
+				bbcode_text += "[color=green][img]res://assets/textures/resources/money_resource.png[/img]+$%.02f[/color]  " % consequence.value
+			ClaimConsequence.ConsequenceType.GET_GOODWILL:
+				bbcode_text += "[color=green][img]res://assets/textures/resources/goodwill_resource.png[/img] +%.02f[/color]  " % consequence.value
+			ClaimConsequence.ConsequenceType.SPEND_MONEY:
+				bbcode_text += "[color=red][img]res://assets/textures/resources/money_resource_negative.png[/img]-%.02f[/color]  " % consequence.value
+			ClaimConsequence.ConsequenceType.SPEND_GOODWILL:
+				bbcode_text += "[color=red][img]res://assets/textures/resources/goodwill_resource_negative.png[/img] -%.02f[/color]  " % consequence.value
+			ClaimConsequence.ConsequenceType.START_EVENT:
+				# Add logic for event icons/text if needed
+				bbcode_text += "[color=yellow]Event![/color]  " 
+	return bbcode_text

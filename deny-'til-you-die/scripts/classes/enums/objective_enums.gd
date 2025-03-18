@@ -13,7 +13,6 @@ enum ObjectiveID {
 	TRIGGER_PUBLIC_OUTRAGE,
 	REACH_5000000_MONEY_5_AI,
 	REACH_25000000_MONEY
-	# ... other objectives (up to 25-30)
 }
 
 static func get_objective_object(objective_id: ObjectiveID) -> Objective:
@@ -30,9 +29,9 @@ static func get_objective_object(objective_id: ObjectiveID) -> Objective:
 		ObjectiveID.DENY_5_CLAIMS:
 			return Objective.new(
 				objective_id,
-				"Deny 5 claims",
+				"Deny 3 claims",
 				GameEnums.ConditionType.DENY_CLAIMS,
-				5,
+				3,
 				GameEnums.ConsequenceType.UNLOCK_FEATURE,
 				FeatureEnums.Feature.MONEY_UPGRADES
 			)

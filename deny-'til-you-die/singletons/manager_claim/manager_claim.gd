@@ -3,7 +3,10 @@ extends Node
 
 static var ref : ManagerClaim
 
-@onready var claim_scene_path = preload("res://scenes/user_interface/main_views/claims_view/claims_sub_view/claim.tscn")
+const FRIVOLOUS_BASE_CHANCE : float = 0.05
+const TRAGIC_BASE_CHANCE : float = 0.05
+
+@onready var claim_scene_path : Resource = preload("res://scenes/user_interface/main_views/claims_view/claims_sub_view/claim.tscn")
 @onready var names_generator = NameGenerator.new()
 @onready var save_game_data : SaveGameData = Game.ref.save_game_data
 var active_claim : Claim
@@ -18,15 +21,18 @@ func _init() -> void:
 
 func _ready() -> void:
 	if !save_game_data.claim_data.active_claim_dict.is_empty():
-		active_claim = _generate_new_claim_from_savegame()
+		active_claim = ClaimGeneration.generate_new_claim_from_savegame(claim_scene_path, save_game_data.claim_data.active_claim_dict)
 	if active_claim == null:
 		_cycle_claim()
 
 func get_active_claim() -> Claim:
 	return active_claim
 
-func get_previous_clain() -> Claim: return previous_claim
+func get_previous_claim() -> Claim: return previous_claim
 
+func get_claim_level() -> int: return save_game_data.claim_data.claim_level
+
+func get_claim_type_odds() -> Dictionary: return save_game_data.claim_data.claim_type_odds
 
 # Approve and Deny claim return the lockout
 func approve_claim() -> float:
@@ -34,19 +40,22 @@ func approve_claim() -> float:
 	active_claim.status = ClaimEnums.ClaimStatus.APPROVED
 	_process_consequences(active_claim.approval_consequences)
 	_cycle_claim()
-	return _get_approval_lockout()
+	return get_approval_lockout()
 
-func deny_claim() -> float:
+func deny_claim() -> bool:
 	save_game_data.claim_data.num_claims_denied += 1
 	active_claim.status = ClaimEnums.ClaimStatus.DENIED
-	_process_consequences(active_claim.denial_consequences)
-	_cycle_claim()
-	return _get_denial_lockout()
+	
+	if _can_process_consequences(active_claim.denial_consequences):
+		_process_consequences(active_claim.denial_consequences)
+		_cycle_claim()
+		return true
+	return false
 
-func _get_approval_lockout() -> float:
+func get_approval_lockout() -> float:
 	return save_game_data.claim_data.approval_lockout
 
-func _get_denial_lockout() -> float:
+func get_denial_lockout() -> float:
 	return save_game_data.claim_data.denial_lockout
 
 # claim_data editing funcs
@@ -58,28 +67,58 @@ func decrease_approval_lockout(quantity : float) -> void:
 
 func decrease_denial_lockout(quantity : float) -> void:
 	save_game_data.claim_data.denial_lockout -= quantity
+	
+func change_tragic_claim_chance(quantity : float) -> void:
+	save_game_data.claim_data.claim_type_odds[ClaimEnums.ClaimType.STANDARD] -= quantity
+	save_game_data.claim_data.claim_type_odds[ClaimEnums.ClaimType.TRAGIC] += quantity
 
-func _generate_new_claim() -> Claim:
-	var new_claim = claim_scene_path.instantiate()
-	var claim_type = _generate_claim_type()
-	new_claim.construct_claim(
-		_generate_claim_title(), 
-		_generate_claimant_name(), 
-		_generate_claimant_age(),
-		_generate_claimant_occupation(),
-		_generate_claim_number(),
-		_generate_claim_description(), 
-		_generate_claim_coverage(),
-		_generate_related_claims(),
-		_generate_notes(),
-		claim_type,
-		_generate_approval_consequences(claim_type),
-		_generate_denial_consequences(claim_type),
-	)
-	return new_claim
+func change_frivolous_claim_chance(quantity : float) -> void:
+	save_game_data.claim_data.claim_type_odds[ClaimEnums.ClaimType.STANDARD] -= quantity
+	save_game_data.claim_data.claim_type_odds[ClaimEnums.ClaimType.FRIVOLOUS] += quantity
 
-func _generate_new_claim_from_savegame() -> Claim:
-	return claim_scene_path.instantiate().dict2inst(save_game_data.claim_data.active_claim_dict)
+func change_upgrade_approval_money(quantity : float) -> void:
+	save_game_data.claim_data.approval_money_upgrade_multiplier += quantity
+	
+func change_upgrade_approval_goodwill(quantity : float) -> void:
+	save_game_data.claim_data.approval_goodwill_upgrade_multiplier += quantity
+	
+func change_upgrade_denial_money(quantity : float) -> void:
+	save_game_data.claim_data.denial_money_upgrade_multiplier += quantity
+
+func change_upgrade_denial_goodwill(quantity : float) -> void:
+	save_game_data.claim_data.denial_goodwill_upgrade_multiplier += quantity
+
+func unlock_claim_type(type : ClaimEnums.ClaimType) -> void:
+	match type:
+		ClaimEnums.ClaimType.FRIVOLOUS:
+			change_frivolous_claim_chance(FRIVOLOUS_BASE_CHANCE)
+		ClaimEnums.ClaimType.TRAGIC:
+			change_tragic_claim_chance(TRAGIC_BASE_CHANCE)
+		_:
+			pass
+
+func _can_process_consequences(consequences : Array[ClaimConsequence]) -> bool:
+	for consequence in consequences:
+		match consequence.type:
+			ClaimConsequence.ConsequenceType.GET_MONEY:
+				pass 
+			ClaimConsequence.ConsequenceType.GET_GOODWILL:
+				pass
+			ClaimConsequence.ConsequenceType.SPEND_MONEY:
+				if typeof(consequence.value) != TYPE_FLOAT:
+					printerr("CONSEQUENCE VALUE IS NOT AN FLOAT")
+				if not ManagerMoney.ref.can_spend(consequence.value):
+					return false
+			ClaimConsequence.ConsequenceType.START_EVENT:
+				pass
+			ClaimConsequence.ConsequenceType.SPEND_GOODWILL:
+				if typeof(consequence.value) != TYPE_FLOAT:
+					printerr("CONSEQUENCE VALUE IS NOT AN FLOAT")
+				if not ManagerGoodwill.ref.can_spend(consequence.value):
+					return false
+			_:
+				printerr("UNKNOWN CONSEQUENCE TYPE")
+	return true
 
 func _process_consequences(consequences : Array[ClaimConsequence]) -> void:
 	for consequence in consequences:
@@ -88,11 +127,16 @@ func _process_consequences(consequences : Array[ClaimConsequence]) -> void:
 				ManagerMoney.ref.add_resource(consequence.value)
 			ClaimConsequence.ConsequenceType.GET_GOODWILL:
 				ManagerGoodwill.ref.add_resource(consequence.value)
+			ClaimConsequence.ConsequenceType.SPEND_MONEY:
+				if typeof(consequence.value) != TYPE_FLOAT:
+					printerr("CONSEQUENCE VALUE IS NOT AN FLOAT")
+				if ManagerMoney.ref.can_spend(consequence.value):
+					ManagerMoney.ref.spend(consequence.value)
 			ClaimConsequence.ConsequenceType.START_EVENT:
 				pass
 			ClaimConsequence.ConsequenceType.SPEND_GOODWILL:
-				if typeof(consequence.value) != TYPE_INT:
-					printerr("CONSEQUENCE VALUE IS NOT AN INT")
+				if typeof(consequence.value) != TYPE_FLOAT:
+					printerr("CONSEQUENCE VALUE IS NOT AN FLOAT")
 				if ManagerGoodwill.ref.can_spend(consequence.value):
 					ManagerGoodwill.ref.spend(consequence.value)
 			_:
@@ -100,57 +144,10 @@ func _process_consequences(consequences : Array[ClaimConsequence]) -> void:
 
 func _cycle_claim() -> void:
 	previous_claim = active_claim
-	active_claim = _generate_new_claim()
+	active_claim = ClaimGeneration.generate_new_claim(claim_scene_path, save_game_data.claim_data, save_game_data.goofyness_level, names_generator)
 	save_game_data.claim_data.active_claim_dict = active_claim.inst2dict()
-
+	
+	print(active_claim.claim_type)
+	print(save_game_data.claim_data.claim_type_odds)
+	
 	claim_update.emit(previous_claim)
-
-func _generate_claim_title() -> String:
-	return "Generic Claim"
-
-func _generate_claimant_name() -> String:
-	return names_generator.new_name()[randi_range(0, 1)]
-
-func _generate_claimant_age() -> int:
-	return randi_range(0, 100)
-
-func _generate_claimant_occupation() -> String:
-	return ClaimConstants.JOB_TITLES[save_game_data.goofyness_level][randi_range(0, len(ClaimConstants.JOB_TITLES[save_game_data.goofyness_level]) - 1)]
-
-func _generate_claim_number() -> String:
-	# TODO: Implement logic to generate claim number (e.g., a random ID)
-	return "00000"
-
-func _generate_claim_description() -> String:
-	return ClaimConstants.DESCRIPTIONS[save_game_data.goofyness_level][randi_range(0, len(ClaimConstants.DESCRIPTIONS[save_game_data.goofyness_level]) - 1)]
-
-func _generate_claim_coverage() -> int:
-	# TODO: Implement logic to generate claim coverage amount (e.g., random value between $100 and $10,000)
-	return 1000
-
-func _generate_related_claims() -> Array[String]:
-	# TODO: Implement logic to generate an array of related claims 
-	# (e.g., ["#12345 - Broken Arm", "#67890 - Head Cold"])
-	return []
-
-func _generate_notes() -> String:
-	# TODO: Implement logic to generate notes for the claim 
-	# (e.g., "This claim seems suspicious...")
-	return "No notes available." 
-
-func _generate_claim_type() -> ClaimEnums.ClaimType:
-	return ClaimEnums.ClaimType.STANDARD
-
-func _generate_approval_consequences(_claim_type : ClaimEnums.ClaimType) -> Array[ClaimConsequence]:
-	var approval_consequences : Array[ClaimConsequence] = [
-		ClaimConsequence.new(ClaimConsequence.ConsequenceType.GET_MONEY, 10),
-		ClaimConsequence.new(ClaimConsequence.ConsequenceType.GET_GOODWILL, 1)
-	]
-	return approval_consequences
-
-func _generate_denial_consequences(_claim_type : ClaimEnums.ClaimType) -> Array[ClaimConsequence]:
-	var denial_consequences : Array[ClaimConsequence] = [
-		ClaimConsequence.new(ClaimConsequence.ConsequenceType.GET_MONEY, 100),
-		ClaimConsequence.new(ClaimConsequence.ConsequenceType.SPEND_GOODWILL, 1)
-	]
-	return denial_consequences

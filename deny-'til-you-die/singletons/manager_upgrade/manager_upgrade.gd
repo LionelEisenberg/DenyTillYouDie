@@ -31,13 +31,13 @@ func get_upgrade_tooltip(upgrade_id : UpgradeEnums.UpgradeID) -> String:
 
 	# Cost
 	var cost_value = upgrade.cost.calculate_cost(upgrade_level)
-	var cost_resource = ""
+	var cost_bbcode =  "[center][b]Cost:[/b] " 
 	match upgrade.cost.cost_resource:
 		GameEnums.ResourceType.MONEY:
-			cost_resource = "Money"
+			cost_bbcode += "[img=24x24]res://assets/textures/resources/money_resource.png[/img] $%.2f[/center]" % cost_value  # Format as float
 		GameEnums.ResourceType.GOODWILL:
-			cost_resource = "Goodwill"
-	tooltip_text += "[b]Cost:[/b] " + str(cost_value) + " " + cost_resource
+			cost_bbcode += "[img=24x24]res://assets/textures/resources/goodwill_resource.png[/img] %.2f[/center]" % cost_value  # Format as float
+	tooltip_text += cost_bbcode
 
 	return tooltip_text
 
@@ -68,7 +68,9 @@ func purchase_upgrade(upgrade_id: UpgradeEnums.UpgradeID) -> bool:
 
 	save_game_data.upgrade_data.set_upgrade_level(upgrade_id, get_upgrade_level(upgrade_id) + 1)
 	_execute_consequence(upgrade_id)
-
+	
+	upgrade_purchased.emit()
+	
 	return true
 
 func _execute_consequence(upgrade_id: UpgradeEnums.UpgradeID):
@@ -80,7 +82,20 @@ func _execute_consequence(upgrade_id: UpgradeEnums.UpgradeID):
 			ManagerClaim.ref.decrease_approval_lockout(upgrade.consequence_value)
 		GameEnums.ConsequenceType.DECREASE_DENIAL_LOCKOUT:
 			ManagerClaim.ref.decrease_denial_lockout(upgrade.consequence_value)
-		pass
+		GameEnums.ConsequenceType.UNLOCK_FEATURE:
+			ManagerUnlock.ref.unlock_feature(upgrade.consequence_value)
+		GameEnums.ConsequenceType.CHANGE_TRAGIC_CLAIM_CHANCE:
+			ManagerClaim.ref.change_tragic_claim_chance(upgrade.consequence_value)
+		GameEnums.ConsequenceType.CHANGE_FRIVOLOUS_CLAIM_CHANCE:
+			ManagerClaim.ref.change_frivolous_claim_chance(upgrade.consequence_value)
+		GameEnums.ConsequenceType.CHANGE_UPGRADE_APPROVAL_MONEY:
+			ManagerClaim.ref.change_upgrade_approval_money(upgrade.consequence_value)
+		GameEnums.ConsequenceType.CHANGE_UPGRADE_APPROVAL_GOODWILL:
+			ManagerClaim.ref.change_upgrade_approval_goodwill(upgrade.consequence_value)
+		GameEnums.ConsequenceType.CHANGE_UPGRADE_DENIAL_MONEY:
+			ManagerClaim.ref.change_upgrade_denial_money(upgrade.consequence_value)
+		GameEnums.ConsequenceType.CHANGE_UPGRADE_DENIAL_GOODWILL:
+			ManagerClaim.ref.change_upgrade_denial_goodwill(upgrade.consequence_value)
 
 func spend_resource(upgrade : Upgrade, upgrade_id : UpgradeEnums.UpgradeID) -> bool:
 	var manager : ManagerResourceInterface

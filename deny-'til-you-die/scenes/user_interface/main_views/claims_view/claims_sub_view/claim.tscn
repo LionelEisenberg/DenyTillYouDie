@@ -26,23 +26,31 @@ theme_override_constants/margin_bottom = 16
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
-text = "Claimant: [Claimant Name]
-Age: [Age]
-Occupation: [Occupation]
-Claim Number: [Claim Number]
+bbcode_enabled = true
+text = "[center][font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=62][outline_size=6]Generic Claim[/outline_size][/font_size][/font][/center]
 
-Claim Description:
-[Detailed and humorous description of the claim]
+[font=res://assets/fonts/claim/AvenirLTStd-Black.otf][font_size=18][font_size=26][outline_size=3]Claimant:[/outline_size][/font_size] Emelie Payne
+[font=res://assets/fonts/claim_title.ttf][font_size=16][b]Age:[/b][/font_size][/font] 35
+[font=res://assets/fonts/claim_title.ttf][font_size=16][b]Occupation:[/b][/font_size][/font] Psychic Medium
+[font=res://assets/fonts/claim_title.ttf][font_size=16][b]Claim Number:[/b][/font_size][/font] 00000
 
-Requested Coverage:
-[Dollar amount requested]
+[font=res://assets/fonts/claim_title.ttf][font_size=16][b]Claim Description:[/b][/font_size][/font]
+[i]Sleep apnea from snoring loud enough to disrupt the space-time continuum.[/i]
 
-Medical Records:
-[Attached medical records, if any]
+[font=res://assets/fonts/claim_title.ttf][font_size=16][b]Requested Coverage:[/b][/font_size][/font]
+[i]1000[/i]
 
-Notes:
-[Additional notes or comments from the claim reviewer]
-
-Decision:
-[Approved/Denied]"
+[font=res://assets/fonts/claim_title.ttf][font_size=16][b]Notes:[/b][/font_size][/font]
+[i][/i]
+[/font_size][/font]"
 scroll_active = false
+
+[node name="ClaimLevel" type="TextureRect" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
+
+[node name="ClaimType" type="TextureRect" parent="MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 8

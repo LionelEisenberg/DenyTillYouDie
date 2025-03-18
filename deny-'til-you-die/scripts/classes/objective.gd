@@ -22,3 +22,13 @@ func _init(
 		self.condition_value = _condition_value
 		self.consequence_type = _consequence_type
 		self.consequence_value = _consequence_value
+
+func get_formatted_description(current_progress: int) -> String:
+	var formatted_description = ""
+	match condition_type:
+		GameEnums.ConditionType.APPROVE_CLAIMS:
+			formatted_description = "[center][img=48x48]res://assets/textures/claims/approve.png[/img] [font=res://assets/fonts/objective_font.tres] %d / %d[/font][/center]" % [current_progress, condition_value]
+		GameEnums.ConditionType.DENY_CLAIMS:
+			formatted_description = "[center][img=48x48]res://assets/textures/claims/deny.png[/img] [font=res://assets/fonts/objective_font.tres] %d / %d[/font][/center]" % [current_progress, condition_value]
+		# Add other condition types as needed...
+	return formatted_description

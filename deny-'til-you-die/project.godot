@@ -24,6 +24,16 @@ window/size/viewport_height=1080
 
 enabled=PackedStringArray("res://addons/randomnamesgenerator/plugin.cfg")
 
+[file_customization]
+
+folder_colors={
+"res://assets/": "pink",
+"res://data/": "orange",
+"res://scenes/": "red",
+"res://scripts/": "yellow",
+"res://singletons/": "green"
+}
+
 [gui]
 
 theme/custom="res://assets/themes/default_theme.tres"

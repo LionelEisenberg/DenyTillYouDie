@@ -10,8 +10,8 @@ func _on_claim_update(_claim : Claim) -> void:
 	_add_active_claim_child()
 
 func _remove_claim_child() -> void:
-	ManagerClaim.ref.get_previous_clain().queue_free()
-	self.remove_child(ManagerClaim.ref.get_previous_clain())
+	ManagerClaim.ref.get_previous_claim().queue_free()
+	self.remove_child(ManagerClaim.ref.get_previous_claim())
 
 
 func _add_active_claim_child() -> void:
