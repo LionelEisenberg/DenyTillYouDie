@@ -131,20 +131,21 @@ func _fit() -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
+	# Event positions arrive in this control's local space, so the grab point
+	# stays under the cursor without asking where the OS mouse is.
 	var mb := event as InputEventMouseButton
 	if mb and mb.button_index == MOUSE_BUTTON_LEFT:
 		if mb.pressed:
 			_dragging = true
-			_drag_offset = get_global_mouse_position() - global_position
+			_drag_offset = mb.position
 			move_to_front()
 			grabbed.emit(self)
 			accept_event()
 		else:
 			_dragging = false
 	elif event is InputEventMouseMotion and _dragging:
-		var parent := get_parent_control()
-		var target := get_global_mouse_position() - _drag_offset - (parent.global_position if parent else Vector2.ZERO)
-		position = _clamp(target)
+		var mm := event as InputEventMouseMotion
+		position = _clamp(position + mm.position - _drag_offset)
 		accept_event()
 
 
