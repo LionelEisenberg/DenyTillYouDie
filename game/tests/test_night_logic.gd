@@ -185,7 +185,8 @@ func test_threshold_fires_once_and_sets_effect() -> void:
 
 func test_scapegoated_at_100_after_night() -> void:
 	var run := _run(3)
-	run.discontent = 99.0
+	# Walt's death pushes it over the line even after the nightly decay.
+	run.discontent = Economy.SCAPEGOAT_AT + Economy.NIGHT_DECAY - Economy.DEATH_DISCONTENT + 0.5
 	run.today["decisions"] = [_decision(false, false, true, 2, "walt")]
 	NightLogic.close_shift(run, _rng())
 	var ending := NightLogic.apply_ledger(run, _all_paid(run))
