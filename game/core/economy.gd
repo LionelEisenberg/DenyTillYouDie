@@ -3,19 +3,19 @@ class_name Economy
 ## (ROUTINE, URGENT, CRITICAL). Tuned with tests/balance_sim.gd.
 
 # Pay
-const BASE_PAY := 30
-const COMMISSION: Array[int] = [15, 25, 40]
-const BLIND_COMMISSION: Array[int] = [7, 12, 20]
-const APPROVAL_COST: Array[int] = [5, 10, 15]
+const BASE_PAY := 45
+const COMMISSION: Array[int] = [8, 15, 25]
+const BLIND_COMMISSION: Array[int] = [4, 7, 12]
+const APPROVAL_COST: Array[int] = [3, 6, 10]
 const COMPLIANCE_FEE := 2
 const FREE_WARNINGS := 2
-const CITATION_FINE := 10
-const LEGAL_FEE := 20
-const BOSS_PENALTY := 40
+const CITATION_FINE := 5
+const LEGAL_FEE := 15
+const BOSS_PENALTY := 30
 
 # Public discontent, in percentage points
 const START_DISCONTENT := 10.0
-const DISCONTENT_DENY: Array[float] = [2.0, 4.0, 7.0]
+const DISCONTENT_DENY: Array[float] = [1.5, 3.0, 5.0]
 const DISCONTENT_APPROVE: Array[float] = [1.0, 2.0, 3.0]
 const CHILD_MULT := 1.5
 const DENYBOT_MULT := 2.0
@@ -24,20 +24,20 @@ const COMPASSION_RELIEF_MULT := 2.0
 const APPEAL_CHANCE := 0.5
 const APPEAL_DISCONTENT := 2.0
 const DEATH_CHANCE: Array[float] = [0.0, 0.10, 0.40]
-const DEATH_DISCONTENT := 4.0
-const NIGHT_DECAY := 2.0
+const DEATH_DISCONTENT := 3.0
+const NIGHT_DECAY := 3.0
 const THRESHOLDS: Array[int] = [30, 55, 80]
 const SCAPEGOAT_AT := 100.0
 
 # Household
-const START_SAVINGS := 50
-const RENT := 30
+const START_SAVINGS := 40
+const RENT := 25
 const FOOD := 15
 const HEAT := 10
-const MEDICINE := 25
+const MEDICINE := 20
 
 # Endings
-const PROMOTION_RATE := 0.6
+const PROMOTION_RATE := 0.67
 
 
 static func commission(priority: int, cited: bool) -> int:
