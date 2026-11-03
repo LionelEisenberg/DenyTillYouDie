@@ -70,13 +70,13 @@ static func medical_history(c: Claim) -> DocumentView:
 	var d := DocumentView.new()
 	d.set_paper(Palette.PAPER, 400)
 	d.add_title("MEDICAL HISTORY", UiTheme.SIZE_BODY)
-	d.add_text("Records release on file. Dates are month/year.").horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	d.add_text("Records release on file.").horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	d.add_field("PATIENT", c.card_name, "history.name")
 	d.add_field("DATE OF BIRTH", DateUtil.fmt(c.card_dob), "history.dob")
 	d.add_rule()
 	for i in c.history.size():
 		var entry := c.history[i]
-		d.add_dated_item(DateUtil.fmt_month_year(int(entry["date"])), entry["label"], "history.entry.%d" % i)
+		d.add_dated_item(DateUtil.fmt(int(entry["date"])), entry["label"], "history.entry.%d" % i)
 	return d
 
 

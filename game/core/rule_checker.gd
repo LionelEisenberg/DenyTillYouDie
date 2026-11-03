@@ -14,14 +14,14 @@ static func violations(c: Claim, day: int) -> Array[Dictionary]:
 	var unlocked := Rules.unlocked(day)
 
 	if unlocked.has(Rules.R01) and c.coverage_through < c.date_of_service:
-		found.append(_violation(Rules.R01, ["card.coverage_through", "claim.date_of_service"]))
+		found.append(_violation(Rules.R01, ["card.coverage_through", "claim.date_of_service", "bill.date_of_service"]))
 
 	if unlocked.has(Rules.R02) and not Medical.is_in_network(c.provider):
 		found.append(_violation(Rules.R02, ["claim.provider", "bill.provider"]))
 
 	if unlocked.has(Rules.R03):
 		if c.name != c.card_name:
-			found.append(_violation(Rules.R03, ["claim.name", "card.name"]))
+			found.append(_violation(Rules.R03, ["claim.name", "card.name", "bill.patient"]))
 		if c.member_id != c.card_member_id:
 			found.append(_violation(Rules.R03, ["claim.member_id", "card.member_id"]))
 		if c.dob != c.card_dob:

@@ -53,6 +53,26 @@ func test_lily_denied_story() -> void:
 	t.ok(String(paper["lead"]["headline"]).contains("3,210"), "fundraiser headline")
 
 
+func test_scripted_story_survives_an_event_lead() -> void:
+	for id in ["walt", "lily", "marcus"]:
+		var y := _yesterday(2)
+		y["events"] = [30]
+		y["decisions"] = [_rec(false, id)]
+		var paper := NewsWriter.build_paper(_run(3), y, _rng())
+		t.eq(paper["lead"]["headline"], NewsPool.EVENT_LEADS[30]["headline"], "%s: event leads" % id)
+		var story: String = NewsWriter.SCRIPTED_LEADS["%s:denied" % id]["headline"]
+		t.ok(JSON.stringify(paper["items"]).contains(story), "%s's story still runs" % id)
+
+
+func test_lily_approved_dips_the_stock() -> void:
+	var y := _yesterday(2)
+	for i in 6:
+		y["decisions"].append(_rec(false))
+	y["decisions"].append(_rec(true, "lily"))
+	var paper := NewsWriter.build_paper(_run(3), y, _rng())
+	t.near(paper["stock"]["change"], NewsWriter.LILY_DIP, 0.001, "ticker matches the story")
+
+
 func test_stock_rises_with_denials() -> void:
 	var harsh := _yesterday(2)
 	var kind := _yesterday(2)

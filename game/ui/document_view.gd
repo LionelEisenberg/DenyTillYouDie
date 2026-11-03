@@ -5,7 +5,6 @@ extends Control
 ## Stamps and notes go on `overlay`, which sits on top of the paper.
 
 signal evidence_clicked(key: String, row: FieldRow)
-signal grabbed(doc: DocumentView)
 
 var drag_bounds := Rect2()
 var rows: Array[FieldRow] = []
@@ -87,13 +86,13 @@ func add_line_item(left: String, right: String, key: String, left_size: int = Ui
 	return row
 
 
-## A dated line ("11/2025  Asthma"): fixed-width date, wrapping label.
+## A dated line ("11/03/2025  Asthma"): fixed-width date, wrapping label.
 func add_dated_item(date_text: String, label_text: String, key: String) -> FieldRow:
 	var box := HBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", 12)
 	var d := UiTheme.label(date_text, UiTheme.SIZE_SMALL, Palette.INK_FADED)
-	d.custom_minimum_size = Vector2(80, 0)
+	d.custom_minimum_size = Vector2(110, 0)
 	d.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	box.add_child(d)
 	var l := UiTheme.label(label_text, UiTheme.SIZE_BODY, Palette.INK)
@@ -139,12 +138,15 @@ func _gui_input(event: InputEvent) -> void:
 			_dragging = true
 			_drag_offset = mb.position
 			move_to_front()
-			grabbed.emit(self)
 			accept_event()
 		else:
 			_dragging = false
 	elif event is InputEventMouseMotion and _dragging:
 		var mm := event as InputEventMouseMotion
+		if not (mm.button_mask & MOUSE_BUTTON_MASK_LEFT):
+			# The release happened somewhere we never heard about.
+			_dragging = false
+			return
 		position = _clamp(position + mm.position - _drag_offset)
 		accept_event()
 

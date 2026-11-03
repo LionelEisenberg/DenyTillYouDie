@@ -64,6 +64,10 @@ func set_mark(mark: Mark) -> void:
 	_refresh()
 
 
+func get_mark() -> Mark:
+	return _mark
+
+
 func _gui_input(event: InputEvent) -> void:
 	if not inspect:
 		return

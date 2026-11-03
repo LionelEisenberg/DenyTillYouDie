@@ -38,12 +38,19 @@ func _ready() -> void:
 	sign_row.add_child(date)
 	column.add_child(sign_row)
 
+	var back := UiTheme.button("BACK", UiTheme.SIZE_BODY, 160)
+	back.pressed.connect(func() -> void: finish({"back": true}))
 	var sign := UiTheme.button("SIGN AND START WORK", UiTheme.SIZE_BODY, 360)
 	sign.pressed.connect(_sign)
 	var holder := HBoxContainer.new()
-	holder.alignment = BoxContainer.ALIGNMENT_END
+	holder.add_child(back)
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	holder.add_child(gap)
 	holder.add_child(sign)
 	column.add_child(holder)
+	if GameState.has_save():
+		column.add_child(UiTheme.label("Signing starts a new week and replaces your saved one.", UiTheme.SIZE_SMALL, Palette.RED_DARK))
 	column.add_child(UiTheme.label("*Terms, conditions and exclusions apply.", UiTheme.SIZE_SMALL, Palette.INK_FADED))
 	name_edit.call_deferred("grab_focus")
 

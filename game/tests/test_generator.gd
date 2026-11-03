@@ -64,6 +64,19 @@ func test_at_most_one_rule_broken_per_random_claim() -> void:
 		t.ok(rules.size() <= 1, "claim %s breaks %s" % [c.claim_no, rules.keys()])
 
 
+## The history shows full dates, so a same-condition entry must never share
+## MEMBER SINCE's date: every pre-existing call is decidable from the paper.
+func test_history_dates_never_tie_member_since() -> void:
+	var gen := ClaimGenerator.new(31, "Pat Doe")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31
+	for i in 3000:
+		var c := gen.random_claim(5 + i % 3, rng)
+		for entry: Dictionary in c.history:
+			if entry["condition"] == c.condition:
+				t.ok(DateUtil.fmt(int(entry["date"])) != DateUtil.fmt(c.member_since), "%s: %s ties member since" % [c.claim_no, entry["label"]])
+
+
 func test_bill_totals_match_amount() -> void:
 	var gen := ClaimGenerator.new(11, "Pat Doe")
 	for day in range(1, 8):

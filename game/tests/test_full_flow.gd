@@ -30,6 +30,19 @@ func _screen() -> ScreenBase:
 	return main.get("current")
 
 
+func test_agreement_back_returns_to_title_without_touching_the_save() -> void:
+	gs.new_run("Saved Player", 9)
+	_screen().finish({"action": "new"})
+	await tree.process_frame
+	t.ok(_screen() is AgreementScreen, "agreement")
+	_screen().finish({"back": true})
+	await tree.process_frame
+	t.ok(_screen() is TitleScreen, "back on the title")
+	t.ok(gs.has_save(), "save untouched")
+	gs.load_game()
+	t.eq(gs.run.player_name, "Saved Player")
+
+
 func test_autopilot_reaches_an_ending() -> void:
 	t.ok(_screen() is TitleScreen, "starts on the title")
 	_screen().finish({"action": "new"})

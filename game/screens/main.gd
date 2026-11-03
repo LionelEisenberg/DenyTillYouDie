@@ -11,7 +11,6 @@ var current_screen: Screen = Screen.TITLE
 ## Tests set this to skip fades and pass it on to each screen.
 var fast: bool = false
 var _fade: ColorRect
-var _busy := false
 
 
 func _ready() -> void:
@@ -26,7 +25,6 @@ func _ready() -> void:
 
 
 func go(screen: Screen) -> void:
-	_busy = true
 	if not fast and is_inside_tree():
 		var out := create_tween()
 		out.tween_property(_fade, "color:a", 1.0, FADE_TIME)
@@ -45,7 +43,6 @@ func go(screen: Screen) -> void:
 		var back := create_tween()
 		back.tween_property(_fade, "color:a", 0.0, FADE_TIME)
 		await back.finished
-	_busy = false
 
 
 func _make(screen: Screen) -> ScreenBase:
@@ -73,8 +70,11 @@ func _on_done(payload: Dictionary, from: Screen) -> void:
 			else:
 				go(Screen.AGREEMENT)
 		Screen.AGREEMENT:
-			GameState.new_run(String(payload.get("name", "")))
-			_morning()
+			if payload.get("back", false):
+				go(Screen.TITLE)
+			else:
+				GameState.new_run(String(payload.get("name", "")))
+				_morning()
 		Screen.PAPER:
 			go(Screen.MEMO)
 		Screen.MEMO:

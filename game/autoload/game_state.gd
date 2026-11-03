@@ -31,6 +31,8 @@ func begin_day() -> void:
 func decide(c: Claim, approve: bool, cited_rule: String) -> Dictionary:
 	var result := ShiftLogic.apply_decision(run, c, approve, cited_rule)
 	if c.is_player:
+		# Day 7 has no night ledger, so its base pay is booked here.
+		run.stats["earned"] += Economy.BASE_PAY
 		run.ending = Endings.resolve_final(run, approve)
 		delete_save()
 	return result
@@ -59,12 +61,18 @@ func apply_ledger(paid: Dictionary) -> String:
 	return ending
 
 
+## Writes a temp file, then swaps it in, so a crash mid-write can't eat the save.
 func save_game() -> void:
-	var file := FileAccess.open(_path(), FileAccess.WRITE)
+	var tmp := _path() + ".tmp"
+	var file := FileAccess.open(tmp, FileAccess.WRITE)
 	if file == null:
 		push_warning("Could not save: %s" % error_string(FileAccess.get_open_error()))
 		return
 	file.store_string(JSON.stringify(run.to_dict(), "\t"))
+	file.close()
+	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(tmp), ProjectSettings.globalize_path(_path()))
+	if err != OK:
+		push_warning("Could not replace save: %s" % error_string(err))
 
 
 func load_game() -> bool:

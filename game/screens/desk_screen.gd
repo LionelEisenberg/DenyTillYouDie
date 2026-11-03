@@ -34,6 +34,8 @@ var _sel_rule: String = ""
 var _sel_rule_row: FieldRow
 var _sel_key: String = ""
 var _sel_key_row: FieldRow
+## The rule and evidence rows of the current citation, kept red until the stamp.
+var _cited_rows: Array[FieldRow] = []
 var _docs: Array[DocumentView] = []
 var _claim_doc: DocumentView
 var _rng := RandomNumberGenerator.new()
@@ -90,6 +92,7 @@ func call_next_patient() -> void:
 	current = claims[index]
 	stamped = false
 	cited_rule = ""
+	_cited_rows.clear()
 	_clear_selection()
 	_overlay.clear()
 	_banner.visible = false
@@ -160,6 +163,12 @@ func stamp(approve: bool) -> void:
 func _on_rule_clicked(rule_id: String, row: FieldRow) -> void:
 	if not inspect or active_claim() == null:
 		return
+	if rule_id == Rules.R07:
+		# DenyBot needs no evidence: citing R-07 just runs it.
+		_set_inspect(false)
+		_rulebook.show_page("DENYBOT")
+		_on_denybot_pressed()
+		return
 	if _sel_rule_row and is_instance_valid(_sel_rule_row):
 		_sel_rule_row.set_mark(FieldRow.Mark.NONE)
 	_sel_rule = rule_id
@@ -209,10 +218,11 @@ func _apply_citation(rule_id: String, rule_row: FieldRow, key_row: FieldRow) -> 
 			doc.clear_marks()
 	cited_rule = rule_id
 	_set_inspect(false)
-	if rule_row:
-		rule_row.set_mark(FieldRow.Mark.VALID)
-	if key_row:
-		key_row.set_mark(FieldRow.Mark.VALID)
+	_cited_rows.clear()
+	for row: FieldRow in [rule_row, key_row]:
+		if row:
+			row.set_mark(FieldRow.Mark.VALID)
+			_cited_rows.append(row)
 	if rule_row and key_row:
 		_overlay.link(rule_row, key_row)
 	var title := String(Rules.get_rule(rule_id)["title"]).to_upper()
@@ -234,6 +244,7 @@ func _run_denybot() -> bool:
 	for doc in _docs:
 		doc.clear_marks()
 	cited_rule = Rules.R07
+	_cited_rows.clear()
 	_flash_banner("DENYBOT: DENY (R-07)")
 	_cite_label.text = "CITED: R-07 ALGORITHMIC DETERMINATION"
 	_deny_button.text = "DENY (R-07)"
@@ -287,13 +298,16 @@ func _clear_selection_later(rule_row: FieldRow, key_row: FieldRow) -> void:
 	_sel_key_row = null
 	await wait(0.6)
 	for row: FieldRow in [rule_row, key_row]:
-		if row and is_instance_valid(row) and cited_rule == "":
-			row.set_mark(FieldRow.Mark.NONE)
+		if row and is_instance_valid(row):
+			row.set_mark(FieldRow.Mark.VALID if _cited_rows.has(row) else FieldRow.Mark.NONE)
 
 
 func _set_inspect(on: bool) -> void:
 	inspect = on and active_claim() != null
 	_rulebook.set_inspect(inspect)
+	if inspect:
+		# The rules to click live on the RULES page, not the reference tabs.
+		_rulebook.show_page("RULES")
 	for doc in _docs:
 		doc.set_inspect(inspect)
 	if not inspect:

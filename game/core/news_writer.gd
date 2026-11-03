@@ -5,6 +5,7 @@ class_name NewsWriter
 ## `yesterday` is built by NightLogic.apply_ledger:
 ## {day, decisions, overturned, deaths, events, family_deaths, fines, warnings, legal, penalty}
 
+const LILY_DIP := -0.4
 const MEMO_TO := "Adjuster #4471, Desk 11"
 const MEMO_FROM := "R. Hargrove, Regional Director, Claims Integrity"
 
@@ -31,22 +32,29 @@ const RULE_DIRECTIVES: Dictionary = {
 static func build_paper(run: RunState, yesterday: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	var decisions: Array = yesterday.get("decisions", [])
 	var outcomes := _scripted_outcomes(decisions)
+	var scripted_lead: Dictionary = {}
+	for key: String in outcomes:
+		if SCRIPTED_LEADS.has(key):
+			scripted_lead = SCRIPTED_LEADS[key]
 	var lead: Dictionary = {}
+	var items: Array[Dictionary] = []
 	var events: Array = yesterday.get("events", [])
 	if not events.is_empty():
 		lead = NewsPool.EVENT_LEADS[int(events.max())]
-	if lead.is_empty():
-		for key: String in outcomes:
-			if SCRIPTED_LEADS.has(key):
-				lead = SCRIPTED_LEADS[key]
-	if lead.is_empty():
+		# An event takes the front page; the scripted story still runs, smaller.
+		if not scripted_lead.is_empty():
+			items.append({"headline": scripted_lead["headline"], "body": scripted_lead["sub"]})
+	elif not scripted_lead.is_empty():
+		lead = scripted_lead
+	else:
 		lead = NewsPool.pick(NewsPool.LEAD_BY_BAND[_band(run.discontent)], rng)
 
-	var items: Array[Dictionary] = []
 	var death_weekday := DateUtil.weekday(DateUtil.game_date(int(yesterday.get("day", run.day - 1))))
+	var obituaries := 0
 	for rec: Dictionary in yesterday.get("deaths", []):
-		if rec["scripted_id"] != "" or items.size() >= 2:
+		if rec["scripted_id"] != "" or obituaries >= 2:
 			continue
+		obituaries += 1
 		var template: String = NewsPool.pick(NewsPool.OBITUARY_TEMPLATES, rng)
 		var body := template.format({"name": rec["name"], "age": rec["age"], "weekday": death_weekday, "condition": _lower_first(String(rec["diagnosis"]))})
 		items.append({"headline": "Obituaries", "body": body})
@@ -55,6 +63,9 @@ static func build_paper(run: RunState, yesterday: Dictionary, rng: RandomNumberG
 			items.append(SCRIPTED_ITEMS[key])
 
 	var change := _stock_change(decisions, rng)
+	if outcomes.has("lily:approved"):
+		# The paper blames the dip on that one claim, so the ticker must agree.
+		change = LILY_DIP
 	var blurb_pool: Array = NewsPool.STOCK_UP if change >= 0.0 else NewsPool.STOCK_DOWN
 	var blurb: String = NewsPool.pick(blurb_pool, rng)
 	items.append({
@@ -174,7 +185,7 @@ static func _performance(yesterday: Dictionary) -> String:
 
 static func _effect_paragraph(effects: Dictionary) -> String:
 	if effects.get("compassion", false):
-		return "Ahead of the congressional hearing, today is Compassion Day. Approvals will not be deducted from your pay. Please approve visibly."
+		return "Ahead of the congressional hearing, today is Compassion Day. Approvals will not be deducted from your pay, and no citations will be issued. Please approve visibly."
 	if effects.get("audit", false):
 		return "Regulators are auditing today's denials. Any denial without a cited reason will be overturned, and legal fees will apply."
 	if effects.get("protest", false):

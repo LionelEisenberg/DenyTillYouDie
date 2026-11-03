@@ -9,7 +9,7 @@ extends SceneTree
 
 const STRATEGIES: PackedStringArray = [
 	"approve_all", "kind_with_warnings", "deny_all_blind", "cite_or_approve",
-	"cite_or_approve_denybot7", "cite_or_blind_routine", "cite_or_blind_all",
+	"cite_or_approve_denybot7", "cite_or_blind_routine", "cite_or_blind_all", "guess_cite",
 ]
 const MISSES_PER_CITATION := 0.25
 
@@ -74,7 +74,10 @@ func _play(strategy: String, seed_value: int) -> Dictionary:
 				var ending := Endings.resolve_final(run, false)
 				return _result(run, ending, true, min_savings)
 			var choice := _choose(strategy, run, c, rng)
-			if choice["cite"] != "" and choice["cite"] != Rules.R07 and rng.randf() < MISSES_PER_CITATION:
+			if choice.has("misses"):
+				for m in int(choice["misses"]):
+					ShiftLogic.compliance_fee(run)
+			elif choice["cite"] != "" and choice["cite"] != Rules.R07 and rng.randf() < MISSES_PER_CITATION:
 				ShiftLogic.compliance_fee(run)
 			ShiftLogic.apply_decision(run, c, choice["approve"], choice["cite"])
 		var night_rng := RandomNumberGenerator.new()
@@ -113,7 +116,35 @@ func _choose(strategy: String, run: RunState, c: Claim, rng: RandomNumberGenerat
 			return {"approve": c.priority != Claim.Priority.ROUTINE, "cite": ""}
 		"cite_or_blind_all":
 			return {"approve": false, "cite": cite}
+		"guess_cite":
+			# Never reads: tries each unlocked rule against its usual field and pays
+			# the compliance fee for every miss, then approves if nothing sticks.
+			var misses := 0
+			for rule_id in Rules.unlocked(run.day):
+				if rule_id == Rules.R07:
+					continue
+				if RuleChecker.check_citation(c, rule_id, _guess_key(rule_id, c), run.day):
+					return {"approve": false, "cite": rule_id, "misses": misses}
+				misses += 1
+			return {"approve": true, "cite": "", "misses": misses}
 	return {"approve": true, "cite": ""}
+
+
+func _guess_key(rule_id: String, c: Claim) -> String:
+	match rule_id:
+		Rules.R01:
+			return "card.coverage_through"
+		Rules.R02:
+			return "claim.provider"
+		Rules.R03:
+			return "claim.name"
+		Rules.R04:
+			return "claim.prior_auth"
+		Rules.R05:
+			return "history.entry.0"
+		Rules.R06:
+			return "bill.line.%d" % (c.bill_lines.size() - 1)
+	return ""
 
 
 ## A careful household: medicine first; food or heat when someone is already

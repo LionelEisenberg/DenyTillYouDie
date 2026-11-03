@@ -62,8 +62,9 @@ Current balance (200 runs each):
 | Cite every valid reason, approve the rest | Always reaches day 7, ~67% discontent; usually just misses promotion |
 | Same, plus DenyBot on day 7 | Promoted ~38%, scapegoated ~18% |
 | Kind: use the two free warnings, cite the rest | Survives ~87%, ~12% discontent |
+| Guess citations without reading | Evicted ~70%: the $2 fee makes brute force a losing game |
 | Approve everything | Evicted around day 3 |
-| Deny everything blind | Scapegoated around day 6 |
+| Deny everything blind | Scapegoated on the night of day 5, after all three discontent events |
 
 ## Credits
 

@@ -193,6 +193,26 @@ func test_scapegoated_at_100_after_night() -> void:
 	t.eq(ending, Endings.SCAPEGOATED)
 
 
+func test_scapegoat_keeps_the_day_for_the_ending_date() -> void:
+	var run := _run(3)
+	run.discontent = Economy.SCAPEGOAT_AT + Economy.NIGHT_DECAY + 1.0
+	NightLogic.close_shift(run, _rng())
+	t.eq(NightLogic.apply_ledger(run, _all_paid(run)), Endings.SCAPEGOATED)
+	t.eq(run.day, 3, "day not advanced, so the ending paper is dated the next morning")
+
+
+func test_ledger_pre_checks_medicine_before_food_and_heat() -> void:
+	var run := _run(1)
+	run.member("mother")["sick"] = true
+	run.savings = Economy.RENT + Economy.MEDICINE - Economy.BASE_PAY
+	var ledger := NightLogic.close_shift(run, _rng())
+	var on := {}
+	for bill: Dictionary in ledger["bills"]:
+		on[bill["id"]] = bill["default_on"]
+	t.ok(on["medicine:mother"], "medicine pre-checked first")
+	t.ok(not on["food"] and not on["heat"], "food and heat wait")
+
+
 func test_nightly_decay() -> void:
 	var run := _run(1)
 	run.discontent = 20.0

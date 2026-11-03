@@ -46,6 +46,15 @@ func test_r01_lapsed_detected() -> void:
 	t.ok(not RuleChecker.check_citation(c, "R-01", "claim.name", 1))
 
 
+func test_bill_copies_of_facts_count_as_evidence() -> void:
+	var lapsed := _clean()
+	lapsed.coverage_through = lapsed.date_of_service - 1
+	t.ok(RuleChecker.check_citation(lapsed, "R-01", "bill.date_of_service", 4), "bill's service date shows the lapse too")
+	var typo := _clean()
+	typo.name = "Maria Okafur"
+	t.ok(RuleChecker.check_citation(typo, "R-03", "bill.patient", 4), "bill carries the misspelled name")
+
+
 func test_r01_coverage_ending_on_service_day_is_clean() -> void:
 	var c := _clean()
 	c.coverage_through = c.date_of_service

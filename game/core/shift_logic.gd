@@ -15,7 +15,8 @@ static func apply_decision(run: RunState, c: Claim, approve: bool, cited_rule: S
 		result["pay"] = -cost
 		run.today["deductions"] += cost
 		result["discontent"] = -Economy.approval_relief(c, compassion)
-		if valid and not c.exempt_from_citation:
+		# No citations for the boss's mother, or on Compassion Day (PR wants approvals).
+		if valid and not c.exempt_from_citation and not compassion:
 			result["citation"] = true
 			run.today["warnings"] += 1
 			result["warning"] = run.today["warnings"]

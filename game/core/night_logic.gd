@@ -48,12 +48,14 @@ static func close_shift(run: RunState, rng: RandomNumberGenerator) -> Dictionary
 		net += int(line["amount"])
 	var available := run.savings + net
 
+	# Listed (and pre-checked while money lasts) by urgency: untreated sickness
+	# kills in two nights, hunger and cold only make people sick.
 	var bills: Array[Dictionary] = [{"id": "rent", "label": "Rent", "amount": Economy.RENT, "mandatory": true, "default_on": true}]
-	bills.append({"id": "food", "label": "Food", "amount": Economy.FOOD, "mandatory": false, "default_on": false})
-	bills.append({"id": "heat", "label": "Heat", "amount": Economy.HEAT, "mandatory": false, "default_on": false})
 	for m in run.family:
 		if m["alive"] and m["sick"]:
 			bills.append({"id": "medicine:%s" % m["id"], "label": "Medicine (%s)" % m["name"], "amount": Economy.MEDICINE, "mandatory": false, "default_on": false})
+	bills.append({"id": "food", "label": "Food", "amount": Economy.FOOD, "mandatory": false, "default_on": false})
+	bills.append({"id": "heat", "label": "Heat", "amount": Economy.HEAT, "mandatory": false, "default_on": false})
 	var budget := available - Economy.RENT
 	for bill in bills:
 		if not bill["mandatory"] and budget >= int(bill["amount"]):
@@ -154,7 +156,9 @@ static func apply_ledger(run: RunState, paid: Dictionary) -> String:
 		"penalty": ledger["penalty"],
 	}
 	if run.discontent >= Economy.SCAPEGOAT_AT:
+		# The run ends tonight; the ending page is dated the next morning from `day`.
 		run.ending = Endings.SCAPEGOATED
+		return run.ending
 
 	run.day += 1
 	var news_rng := RandomNumberGenerator.new()

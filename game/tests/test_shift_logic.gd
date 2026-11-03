@@ -91,6 +91,9 @@ func test_compassion_day_free_approvals_double_relief() -> void:
 	var r := ShiftLogic.apply_decision(run, _claim(Claim.Priority.URGENT), true, "")
 	t.eq(r["pay"], 0)
 	t.near(r["discontent"], -Economy.DISCONTENT_APPROVE[1] * Economy.COMPASSION_RELIEF_MULT, 0.001)
+	for i in 4:
+		var cited := ShiftLogic.apply_decision(run, _claim(Claim.Priority.ROUTINE, true), true, "")
+		t.ok(not cited["citation"] and cited["pay"] == 0, "no citations or fines on Compassion Day")
 
 
 func test_missed_denial_two_warnings_then_fine() -> void:

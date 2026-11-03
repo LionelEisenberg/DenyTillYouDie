@@ -81,6 +81,18 @@ func test_own_claim_ends_the_run() -> void:
 	gs.run.day = 7
 	gs.begin_day()
 	var mine: Claim = gs.claims_today[gs.claims_today.size() - 1]
-	gs.decide(mine, true, "")
+	var earned_before: int = gs.run.stats["earned"]
+	var result: Dictionary = gs.decide(mine, true, "")
 	t.eq(gs.run.ending, Endings.FIRED)
 	t.ok(not gs.has_save())
+	t.eq(gs.run.stats["earned"], earned_before + int(result["pay"]) + Economy.BASE_PAY, "day-7 base pay counts")
+
+
+func test_saving_twice_replaces_the_file() -> void:
+	gs.new_run("Pat Doe", 42)
+	gs.run.savings = 777
+	gs.save_game()
+	gs.run = null
+	t.ok(gs.load_game())
+	t.eq(gs.run.savings, 777, "second save replaced the first")
+	t.ok(not FileAccess.file_exists("user://test_save.json.tmp"), "no temp file left behind")

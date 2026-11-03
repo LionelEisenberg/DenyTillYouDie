@@ -11,6 +11,7 @@ func _ready() -> void:
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	var column := centered_paper(1400, Palette.NEWSPRINT)
+	# Every ending is reported the morning after the last day worked.
 	NewspaperScreen.build_masthead(column, DateUtil.fmt_long(DateUtil.game_date(clampi(GameState.run.day, 1, 7)) + 1))
 	var paper: Dictionary = page["paper"]
 	column.add_child(UiTheme.para(String(paper["headline"]).to_upper(), 1320, UiTheme.SIZE_BIG, Palette.INK))

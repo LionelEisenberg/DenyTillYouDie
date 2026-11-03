@@ -13,12 +13,17 @@ func _ready() -> void:
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.add_child(column)
 
+	# Containers reset rotation, so the tilted stamp sits in a plain holder.
 	var stamp := StampMark.create(false, "")
 	stamp.rotation_degrees = -8.0
-	var stamp_holder := CenterContainer.new()
-	stamp_holder.custom_minimum_size = Vector2(0, 110)
-	stamp_holder.add_child(stamp)
-	column.add_child(stamp_holder)
+	var holder := Control.new()
+	holder.custom_minimum_size = stamp.size
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(stamp)
+	var stamp_row := CenterContainer.new()
+	stamp_row.custom_minimum_size = Vector2(0, 120)
+	stamp_row.add_child(holder)
+	column.add_child(stamp_row)
 
 	var title := UiTheme.label("DENY 'TIL YOU DIE", UiTheme.SIZE_HUGE, Palette.PAPER)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

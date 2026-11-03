@@ -227,3 +227,15 @@ Autosave at the start of each morning. The title screen offers Continue (resumes
 - Exact layout coordinates, document sizes, fonts and palette values.
 - All content writing within the tone above.
 - Final tuning of every number in this document.
+
+## As built (2026-11-03)
+
+What changed from the starting values above, and why.
+
+- **Economy, retuned by `tests/balance_sim.gd`:** base pay $45; commission $8/$15/$25 cited, $4/$7/$12 blind; approval deduction $3/$6/$10; citation fine $5; legal fee $15; boss penalty $30; rent $25, food $15, heat $10, medicine $20; starting savings $40. Discontent per denial 1.5/3/5, death +3, nightly decay −3. The starting values got the fair player scapegoated in 61% of runs and evicted the kind player on day 1.
+- **Promotion line: 67%** (not 60%), so a cite-or-approve player usually lands just under it and has to lean on DenyBot or blind denials.
+- **Balance outcomes:** approving everything is evicted around day 3 (spec guessed day 4–5); denying everything blind is scapegoated on the night of day 5, after all three discontent events (spec guessed day 4); guessing citations without reading is evicted in ~70% of runs. A kind player who uses the two free warnings survives about 87% of runs.
+- **Glyphs:** MatchupPro has no ™, em dash or ÷, so the game text avoids them ("DenyBot", "-R.H."). A test fails if one sneaks back in.
+- **The boss's sticky note** is its own small paper on the desk, not stuck to the claim form.
+- **Desk buttons take no keyboard focus**, so Space (inspect) can never press a stamp.
+- **Portrait enum is `PortraitView.Mood`**: Godot already has a class named `Expression`.

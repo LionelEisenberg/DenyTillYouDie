@@ -106,6 +106,50 @@ func test_space_cannot_press_a_stamp() -> void:
 	t.ok(desk.active_claim() != null, "and stamps nothing")
 
 
+func _desk_on_day(day: int) -> void:
+	gs.run.day = day
+	desk.queue_free()
+	desk = DeskScreen.new()
+	desk.fast = true
+	tree.root.add_child(desk)
+	await tree.process_frame
+
+
+func test_clicking_r07_runs_denybot() -> void:
+	await _desk_on_day(7)
+	desk.call_next_patient()
+	desk._set_inspect(true)
+	var row := desk._rulebook.find_rule_row("R-07")
+	desk._on_rule_clicked("R-07", row)
+	t.eq(desk.cited_rule, "R-07", "R-07 click cites DenyBot")
+	t.eq(gs.run.today["fees"], 0, "and charges no compliance fee")
+
+
+func test_a_miss_after_a_citation_keeps_the_red_marks() -> void:
+	var c: Claim = await _next_violating()
+	var v: Dictionary = RuleChecker.violations(c, desk.day)[0]
+	var key: String = (v["evidence"] as PackedStringArray)[0]
+	desk.try_cite(v["rule"], key)
+	var key_row := desk._find_evidence_row(key)
+	desk.try_cite("R-01" if v["rule"] != "R-01" else "R-02", key)
+	await tree.process_frame
+	t.eq(key_row.get_mark(), FieldRow.Mark.VALID, "cited evidence stays marked after the miss")
+	t.eq(desk.cited_rule, v["rule"])
+
+
+func test_inspect_opens_the_rules_page() -> void:
+	gs.run.day = 2
+	desk.queue_free()
+	desk = DeskScreen.new()
+	desk.fast = true
+	tree.root.add_child(desk)
+	await tree.process_frame
+	desk.call_next_patient()
+	desk._rulebook.show_page("NETWORK")
+	desk._set_inspect(true)
+	t.ok(desk._rulebook.find_rule_row("R-01").is_visible_in_tree(), "rule rows visible while inspecting")
+
+
 func test_next_patient_requires_a_stamp() -> void:
 	desk.call_next_patient()
 	var first := desk.active_claim()
