@@ -1,0 +1,11 @@
+# Godot editor cache and imported data
+.godot/
+
+# Export artifacts
+export/
+*.exe
+*.pck
+*.zip
+
+# Screenshot tour output
+tests/screenshots/
