@@ -81,6 +81,11 @@ func has_save() -> bool:
 	return not data.is_empty() and str(data.get("ending", "")) == ""
 
 
+## The morning a Continue would resume, or 0 without a save.
+func saved_day() -> int:
+	return int(_read_save().get("day", 0))
+
+
 func delete_save() -> void:
 	if FileAccess.file_exists(_path()):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(_path()))

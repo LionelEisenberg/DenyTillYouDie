@@ -48,6 +48,24 @@ const PLAYER := {
 }
 
 
+## What scripted patients say after the stamp, instead of a generic line.
+const REACTIONS: Dictionary = {
+	"walt": {"approved": "Thank you. I didn't think anyone would read it.", "denied": "I was unconscious. What was I supposed to do?"},
+	"lily": {"approved": "Thank you. Thank you. I have to call her mother.", "denied": "She's seven."},
+	"dale": {"approved": "I owe you one. Lunch is on me.", "denied": "It's one letter. It's my name. You know my name."},
+	"eleanor": {"approved": "Such a polite young person. I'll tell my son.", "denied": "My son will hear about this."},
+	"priya": {"approved": "Oh. Okay. Okay, good.", "denied": "...okay."},
+	"marcus": {"approved": "...really? I'll call the trial coordinator.", "denied": "Okay. Thank you for your time."},
+	"player": {"approved": "...", "denied": "..."},
+}
+
+
+static func reaction(id: String, approved: bool) -> String:
+	if not REACTIONS.has(id):
+		return ""
+	return REACTIONS[id]["approved" if approved else "denied"]
+
+
 static func for_day(day: int) -> Dictionary:
 	for case_data in CASES:
 		if case_data["day"] == day:
