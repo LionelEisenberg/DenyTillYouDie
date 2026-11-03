@@ -66,9 +66,33 @@ func _run() -> void:
 	ledger.queue_free()
 	await _show(NewspaperScreen.new(), "10_paper_day2")
 
-	# Play days 2-5 by the book, then look at a full desk on day 6.
-	for day in range(2, 6):
-		_play_day_by_the_book()
+	# Day 2 by the book; day 3 shows the night Riley gets sick.
+	_play_day_by_the_book()
+	_play_day_by_the_book(false)
+	await _show(LedgerScreen.new(), "10b_ledger_night3_riley", false)
+	ledger = root.get_child(root.get_child_count() - 1)
+	ledger._on_sleep()
+	ledger.queue_free()
+	await _show(MemoScreen.new(), "10c_memo_day4")
+	# Day 4: approve the first patients (a citation slip may print), then Eleanor.
+	desk = DeskScreen.new()
+	desk.fast = true
+	root.add_child(desk)
+	await _frames(1)
+	var eleanor_slot: int = Scripted.for_day(4)["slot"]
+	for i in eleanor_slot:
+		desk.call_next_patient()
+		await desk.stamp(true)
+	await _frames(2)
+	await _shot("10d_desk_day4_after_approvals")
+	desk.call_next_patient()
+	await _frames(2)
+	await _shot("10e_desk_day4_eleanor")
+	desk.queue_free()
+	await _frames(1)
+	gs.run.day = 4
+	_play_day_by_the_book()
+	_play_day_by_the_book()
 	var paper := NewspaperScreen.new()
 	await _show(paper, "11_paper_day6")
 	await _show(MemoScreen.new(), "12_memo_day6")
@@ -111,11 +135,14 @@ func _run() -> void:
 	get_tree().quit()
 
 
-func _play_day_by_the_book() -> void:
+## Plays today's claims (cite or approve). With `sleep`, also closes the night.
+func _play_day_by_the_book(sleep: bool = true) -> void:
 	gs.begin_day()
 	for c: Claim in gs.claims_today:
 		var violations := RuleChecker.violations(c, gs.run.day)
 		gs.decide(c, violations.is_empty(), "" if violations.is_empty() else violations[0]["rule"])
+	if not sleep:
+		return
 	gs.close_shift()
 	var medicine := {}
 	for m: Dictionary in gs.run.family:

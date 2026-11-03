@@ -26,8 +26,6 @@ static func claim_form(c: Claim) -> DocumentView:
 	d.add_field("PRIORITY", c.priority_name(), "claim.priority", priority_color(c.priority))
 	if c.shows_bill():
 		d.add_field("PRIOR AUTH #", c.prior_auth if c.prior_auth != "" else BLANK, "claim.prior_auth")
-	if c.sticky_note != "":
-		_sticky_note(d, c.sticky_note)
 	return d
 
 
@@ -105,11 +103,10 @@ static func priority_color(priority: int) -> Color:
 	return Palette.INK
 
 
-static func _sticky_note(d: DocumentView, text: String) -> void:
-	var note := PanelContainer.new()
-	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	note.add_theme_stylebox_override("panel", UiTheme.flat_box(Palette.HIGHLIGHT, Palette.AMBER, 1, 12, 10))
-	note.add_child(UiTheme.label(text, UiTheme.SIZE_BODY, Palette.INK_BLUE))
-	note.position = Vector2(300, -20)
-	note.rotation_degrees = 5.0
-	d.overlay.add_child(note)
+## A handwritten sticky note that came stuck to the claim (the boss's mother).
+static func sticky_note(text: String) -> DocumentView:
+	var d := DocumentView.new()
+	d.set_paper(Palette.HIGHLIGHT, 260, Palette.AMBER)
+	d.add_text(text, UiTheme.SIZE_BODY, Palette.INK_BLUE)
+	d.rotation_degrees = 3.0
+	return d

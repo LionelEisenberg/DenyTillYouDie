@@ -192,7 +192,7 @@ func _evaluate(rule_id: String, rule_row: FieldRow, key: String, key_row: FieldR
 		return true
 	var fee := GameState.compliance_fee()
 	Sfx.play("buzz")
-	FloatingText.spawn(self, "-%s" % UiTheme.money(fee), Palette.RED, Vector2(_pay_label.position.x, TOP_H + 8))
+	FloatingText.spawn(self, "-%s" % UiTheme.money(fee), Palette.RED, _feedback_spot(0), 0.0, -40.0)
 	_hint_label.text = "No violation there. Compliance review fee: %s." % UiTheme.money(fee)
 	for row: FieldRow in [rule_row, key_row]:
 		if row and is_instance_valid(row):
@@ -348,6 +348,8 @@ func _spawn_documents(c: Claim) -> void:
 	var layout: Array = [[_claim_doc, Vector2(20, 16)], [Paperwork.member_card(c), Vector2(540, 16)]]
 	if c.shows_bill():
 		layout.append([Paperwork.itemized_bill(c), Vector2(540, 320)])
+	if c.sticky_note != "":
+		layout.append([Paperwork.sticky_note(c.sticky_note), Vector2(60, 480)])
 	if c.shows_history():
 		layout.append([Paperwork.medical_history(c), Vector2(20, 470)])
 	var delay := 0.0
@@ -405,12 +407,12 @@ func _print_citation(result: Dictionary) -> void:
 
 func _show_feedback(result: Dictionary) -> void:
 	var pay: int = result["pay"]
-	var anchor := Vector2(_pay_label.position.x, TOP_H + 8)
-	FloatingText.spawn(self, UiTheme.signed_money(pay), Palette.GREEN if pay >= 0 else Palette.RED, anchor)
+	var anchor := _feedback_spot(0)
+	FloatingText.spawn(self, UiTheme.signed_money(pay), Palette.GREEN if pay >= 0 else Palette.RED, anchor, 0.0, -40.0)
 	var d: float = result["discontent"]
 	if absf(d) >= 0.05:
 		var text := "%s%s%% discontent" % ["+" if d > 0 else "-", _fmt_points(absf(d))]
-		FloatingText.spawn(self, text, Palette.RED if d > 0 else Palette.GREEN, Vector2(_meter.position.x, TOP_H + 8), 0.15)
+		FloatingText.spawn(self, text, Palette.RED if d > 0 else Palette.GREEN, _feedback_spot(1), 0.15, -40.0)
 	if pay > 0:
 		Sfx.play("cash")
 
@@ -657,3 +659,9 @@ func _place_label_on(parent: Control, text: String, at: Vector2, size: int, colo
 	l.position = at
 	parent.add_child(l)
 	return l
+
+
+## Where pay (0) and discontent (1) feedback pops up: just above the stamps,
+## where the player's eyes already are.
+func _feedback_spot(which: int) -> Vector2:
+	return Vector2(1920 - 600 + which * 300, 1080 - TRAY_H - HINT_H - 56)
