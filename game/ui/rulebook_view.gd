@@ -113,6 +113,7 @@ func _denybot_page() -> Control:
 	page.add_child(UiTheme.para("Proprietary algorithmic claim review. DenyBot determinations count as cited denials (R-07). Reasoning is not available.", WIDTH - 40, UiTheme.SIZE_SMALL, Palette.INK_FADED))
 	denybot_button = UiTheme.button("RUN DENYBOT", UiTheme.SIZE_BODY)
 	denybot_button.disabled = true
+	denybot_button.focus_mode = Control.FOCUS_NONE
 	denybot_button.pressed.connect(func() -> void: denybot_pressed.emit())
 	page.add_child(denybot_button)
 	denybot_result = UiTheme.para("", WIDTH - 40, UiTheme.SIZE_BODY, Palette.RED_DARK)

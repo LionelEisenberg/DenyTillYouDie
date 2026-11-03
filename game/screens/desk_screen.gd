@@ -559,6 +559,10 @@ func _stamp_button(text: String, color: Color, dark: Color) -> Button:
 
 
 func _bind_buttons() -> void:
+	# Mouse-driven desk: no keyboard focus, or Space (ui_accept) would press a
+	# focused stamp instead of toggling inspect.
+	for b: Button in [_next_button, _inspect_button, _approve_button, _deny_button]:
+		b.focus_mode = Control.FOCUS_NONE
 	_next_button.pressed.connect(call_next_patient)
 	_inspect_button.pressed.connect(func() -> void: _set_inspect(not inspect))
 	_approve_button.pressed.connect(stamp.bind(true))

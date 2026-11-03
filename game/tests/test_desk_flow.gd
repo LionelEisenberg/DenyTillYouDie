@@ -93,6 +93,19 @@ func test_day_ends_after_last_patient() -> void:
 	t.eq(gs.run.stats["processed"], desk.claims.size())
 
 
+func test_space_cannot_press_a_stamp() -> void:
+	desk.call_next_patient()
+	for b: Button in [desk._approve_button, desk._deny_button, desk._next_button, desk._inspect_button]:
+		t.eq(b.focus_mode, Control.FOCUS_NONE, "%s takes no keyboard focus" % b.text)
+	var space := InputEventAction.new()
+	space.action = "inspect_toggle"
+	space.pressed = true
+	tree.root.push_input(space)
+	await tree.process_frame
+	t.ok(desk.inspect, "Space toggles inspect")
+	t.ok(desk.active_claim() != null, "and stamps nothing")
+
+
 func test_next_patient_requires_a_stamp() -> void:
 	desk.call_next_patient()
 	var first := desk.active_claim()
