@@ -41,7 +41,7 @@ static func close_shift(run: RunState, rng: RandomNumberGenerator) -> Dictionary
 	_add_line(income, "Approval deductions", -int(t["deductions"]))
 	_add_line(income, "Citations", -int(t["fines"]))
 	_add_line(income, "Compliance review fees", -int(t["fees"]))
-	_add_line(income, "Legal fees (%d appeals lost)" % overturned.size(), -legal)
+	_add_line(income, "Legal fees (%s lost)" % Fmt.plural(overturned.size(), "appeal"), -legal)
 	_add_line(income, "Performance adjustment (R.H.)", -boss_penalty)
 	var net := 0
 	for line in income:
@@ -49,13 +49,15 @@ static func close_shift(run: RunState, rng: RandomNumberGenerator) -> Dictionary
 	var available := run.savings + net
 
 	# Listed (and pre-checked while money lasts) by urgency: untreated sickness
-	# kills in two nights, hunger and cold only make people sick.
+	# kills in two nights, hunger and cold only make people sick. With nobody
+	# left at home there is no one to feed or keep warm.
 	var bills: Array[Dictionary] = [{"id": "rent", "label": "Rent", "amount": Economy.RENT, "mandatory": true, "default_on": true}]
 	for m in run.family:
 		if m["alive"] and m["sick"]:
 			bills.append({"id": "medicine:%s" % m["id"], "label": "Medicine (%s)" % m["name"], "amount": Economy.MEDICINE, "mandatory": false, "default_on": false})
-	bills.append({"id": "food", "label": "Food", "amount": Economy.FOOD, "mandatory": false, "default_on": false})
-	bills.append({"id": "heat", "label": "Heat", "amount": Economy.HEAT, "mandatory": false, "default_on": false})
+	if _anyone_alive(run):
+		bills.append({"id": "food", "label": "Food", "amount": Economy.FOOD, "mandatory": false, "default_on": false})
+		bills.append({"id": "heat", "label": "Heat", "amount": Economy.HEAT, "mandatory": false, "default_on": false})
 	var budget := available - Economy.RENT
 	for bill in bills:
 		if not bill["mandatory"] and budget >= int(bill["amount"]):
@@ -85,26 +87,38 @@ static func close_shift(run: RunState, rng: RandomNumberGenerator) -> Dictionary
 ## next morning and advances the day. Returns an ending id, or "" to keep playing.
 static func apply_ledger(run: RunState, paid: Dictionary) -> String:
 	var ledger: Dictionary = run.today["ledger"]
+	var deaths: Array = ledger["deaths"]
+	var overturned: Array = ledger["overturned"]
+	# Booked before the eviction check, so the ending page counts the last night.
+	for rec: Dictionary in deaths:
+		run.deaths.append({"name": rec["name"], "age": rec["age"], "diagnosis": rec["diagnosis"], "day": run.day, "scripted_id": rec["scripted_id"]})
+	run.stats["deaths"] += deaths.size()
+	run.stats["earned"] += Economy.BASE_PAY - int(ledger["legal"]) - int(ledger["penalty"])
 	if ledger["evicted"]:
 		run.ending = Endings.EVICTED
 		return run.ending
 
 	var available: int = ledger["available"]
-	var food_paid: bool = paid.get("food", false)
-	var heat_paid: bool = paid.get("heat", false)
+	# Food and heat aren't on the ledger once nobody is left at home.
+	var household := _anyone_alive(run)
+	var food_paid: bool = household and paid.get("food", false)
+	var heat_paid: bool = household and paid.get("heat", false)
 	var medicine: Dictionary = paid.get("medicine", {})
 	var treated: Array[String] = []
 	for m in run.family:
 		if m["alive"] and m["sick"] and medicine.get(m["id"], false):
 			treated.append(m["id"])
-	# Never spend money that isn't there: drop medicine, then heat, then food.
+	# Never spend money that isn't there. The least urgent bill goes first, the
+	# ledger's order reversed: heat, then food, then medicine.
 	while _cost(food_paid, heat_paid, treated.size()) > available:
-		if not treated.is_empty():
-			treated.pop_back()
-		elif heat_paid:
+		if heat_paid:
 			heat_paid = false
-		else:
+		elif food_paid:
 			food_paid = false
+		elif not treated.is_empty():
+			treated.pop_back()
+		else:
+			break
 	run.savings = available - _cost(food_paid, heat_paid, treated.size())
 
 	var family_deaths: Array[String] = []
@@ -127,12 +141,6 @@ static func apply_ledger(run: RunState, paid: Dictionary) -> String:
 			m["sick"] = true
 			m["sick_nights"] = 0
 
-	var deaths: Array = ledger["deaths"]
-	var overturned: Array = ledger["overturned"]
-	for rec: Dictionary in deaths:
-		run.deaths.append({"name": rec["name"], "age": rec["age"], "diagnosis": rec["diagnosis"], "day": run.day, "scripted_id": rec["scripted_id"]})
-	run.stats["deaths"] += deaths.size()
-	run.stats["earned"] += Economy.BASE_PAY - int(ledger["legal"]) - int(ledger["penalty"])
 	run.discontent += deaths.size() * Economy.DEATH_DISCONTENT + overturned.size() * Economy.APPEAL_DISCONTENT
 	run.discontent = maxf(0.0, run.discontent - Economy.NIGHT_DECAY)
 
@@ -194,10 +202,21 @@ static func family_status(run: RunState) -> Array[Dictionary]:
 
 
 static func _dies(rec: Dictionary, rng: RandomNumberGenerator) -> bool:
+	# Some conditions hurt without killing (Medical.DIAGNOSES "fatal": false).
+	# Records from before that flag existed count as fatal.
+	if not rec.get("fatal", true):
+		return false
 	var scripted: String = rec["scripted_id"]
 	if scripted != "":
 		return SCRIPTED_DEATHS.has(scripted)
 	return rng.randf() < Economy.DEATH_CHANCE[int(rec["priority"])]
+
+
+static func _anyone_alive(run: RunState) -> bool:
+	for m in run.family:
+		if m["alive"]:
+			return true
+	return false
 
 
 static func _cost(food: bool, heat: bool, medicines: int) -> int:

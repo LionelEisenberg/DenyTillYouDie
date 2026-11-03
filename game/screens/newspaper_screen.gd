@@ -7,6 +7,7 @@ const WIDTH := 1500.0
 ## Set by the caller; defaults to this morning's paper.
 var paper: Dictionary = {}
 var continue_text: String = "GO TO WORK"
+var _go: Button
 
 
 func _ready() -> void:
@@ -36,13 +37,16 @@ func _ready() -> void:
 		grid.add_child(box)
 	column.add_child(grid)
 
-	var go := UiTheme.button(continue_text, UiTheme.SIZE_BODY, 300)
-	go.pressed.connect(func() -> void: finish({}))
+	_go = UiTheme.button(continue_text, UiTheme.SIZE_BODY, 300)
+	_go.pressed.connect(func() -> void: finish({}))
 	var holder := HBoxContainer.new()
 	holder.alignment = BoxContainer.ALIGNMENT_END
-	holder.add_child(go)
+	holder.add_child(_go)
 	column.add_child(holder)
-	go.call_deferred("grab_focus")
+
+
+func on_shown() -> void:
+	_go.grab_focus()
 
 
 static func build_masthead(column: VBoxContainer, date_text: String) -> void:

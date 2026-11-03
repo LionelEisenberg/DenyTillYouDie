@@ -66,7 +66,7 @@ func add_field(caption: String, value: String, key: String, value_color: Color =
 
 
 ## A two-column line ("MRI, BRAIN ... $3,400"), citable like any field.
-func add_line_item(left: String, right: String, key: String, left_size: int = UiTheme.SIZE_SMALL, right_size: int = UiTheme.SIZE_SMALL, left_color: Color = Palette.INK) -> FieldRow:
+func add_line_item(left: String, right: String, key: String, left_size: int = UiTheme.SIZE_BODY, right_size: int = UiTheme.SIZE_BODY, left_color: Color = Palette.INK) -> FieldRow:
 	var box := HBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", 12)
@@ -91,7 +91,7 @@ func add_dated_item(date_text: String, label_text: String, key: String) -> Field
 	var box := HBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override("separation", 12)
-	var d := UiTheme.label(date_text, UiTheme.SIZE_SMALL, Palette.INK_FADED)
+	var d := UiTheme.label(date_text, UiTheme.SIZE_BODY, Palette.INK_FADED)
 	d.custom_minimum_size = Vector2(110, 0)
 	d.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	box.add_child(d)

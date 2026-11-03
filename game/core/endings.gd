@@ -14,7 +14,8 @@ static func resolve_final(run: RunState, approved_own: bool) -> String:
 		return SCAPEGOATED
 	if approved_own:
 		return FIRED
-	if denial_rate(run) >= Economy.PROMOTION_RATE:
+	# Judged on the percent the memo shows, so "66%" never earns a 67% promotion.
+	if rate_percent(run) >= roundi(Economy.PROMOTION_RATE * 100):
 		return PROMOTED
 	return EMPLOYEE_OF_MONTH
 
@@ -27,10 +28,16 @@ static func denial_rate(run: RunState) -> float:
 	return float(run.stats.get("denied", 0)) / processed
 
 
+## The denial rate as every page shows it: whole percent, rounded down (32 of 48
+## is 66%). The epsilon keeps 29 of 100 from flooring to 28.
+static func rate_percent(run: RunState) -> int:
+	return floori(denial_rate(run) * 100.0 + 0.000001)
+
+
 ## {id, title, paper: {headline, sub}, epilogue: PackedStringArray, stats: Array, survived: bool}
 static func build(run: RunState, id: String) -> Dictionary:
 	var player := run.player_name
-	var rate := roundi(denial_rate(run) * 100)
+	var rate := rate_percent(run)
 	var title := ""
 	var paper := {}
 	var epilogue: PackedStringArray = []
@@ -65,7 +72,7 @@ static func build(run: RunState, id: String) -> Dictionary:
 			epilogue.append("You denied your own claim. The board admired your integrity.")
 			epilogue.append("Regional Directors are covered by the Executive Plan, which has no exclusions. Your treatment was approved in four minutes.")
 			epilogue.append("Your first directive raised the denial target to 80%.")
-	epilogue.append(_family_line(run, survived))
+	epilogue.append(_family_line(run, id, survived))
 	return {
 		"id": id,
 		"title": title,
@@ -76,7 +83,7 @@ static func build(run: RunState, id: String) -> Dictionary:
 	}
 
 
-static func _family_line(run: RunState, player_survived: bool) -> String:
+static func _family_line(run: RunState, id: String, player_survived: bool) -> String:
 	var alive: PackedStringArray = []
 	var dead: PackedStringArray = []
 	var sick: PackedStringArray = []
@@ -89,20 +96,20 @@ static func _family_line(run: RunState, player_survived: bool) -> String:
 				sick.append(m["name"])
 	if alive.is_empty():
 		return "There was no one left at home to tell."
+	var names := Fmt.join_names(alive)
 	var line := ""
-	if dead.is_empty():
-		line = "%s are still at home." % _join(alive) if player_survived else "%s were at the service." % _join(alive)
+	if not dead.is_empty():
+		line = "%s did not make it through the week. %s %s left." % [Fmt.join_names(dead), names, "is" if alive.size() == 1 else "are"]
+	elif id == EVICTED:
+		# There is no home to be still at.
+		line = "%s are staying with relatives." % names
+	elif player_survived:
+		line = "%s are still at home." % names
 	else:
-		line = "%s did not make it through the week. %s %s left." % [_join(dead), _join(alive), "is" if alive.size() == 1 else "are"]
+		line = "%s were at the service." % names
 	if not sick.is_empty():
-		line += " %s still %s medicine." % [_join(sick), "needs" if sick.size() == 1 else "need"]
+		line += " %s still %s medicine." % [Fmt.join_names(sick), "needs" if sick.size() == 1 else "need"]
 	return line
-
-
-static func _join(names: PackedStringArray) -> String:
-	if names.size() <= 1:
-		return "".join(names)
-	return ", ".join(names.slice(0, names.size() - 1)) + " and " + names[names.size() - 1]
 
 
 static func _stats(run: RunState) -> Array:
@@ -111,8 +118,8 @@ static func _stats(run: RunState) -> Array:
 		["Claims processed", str(s.get("processed", 0))],
 		["Denied", str(s.get("denied", 0))],
 		["Approved", str(s.get("approved", 0))],
-		["Denial rate", "%d%%" % roundi(denial_rate(run) * 100)],
-		["Deaths in the paper", str(s.get("deaths", 0))],
-		["Money earned", "$%d" % int(s.get("earned", 0))],
+		["Denial rate", "%d%%" % rate_percent(run)],
+		["Patients who died", str(s.get("deaths", 0))],
+		["Money earned", Fmt.money(int(s.get("earned", 0)))],
 		["Final discontent", "%d%%" % roundi(run.discontent)],
 	]

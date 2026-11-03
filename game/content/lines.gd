@@ -1,5 +1,9 @@
 class_name Lines
 ## What patients say at the window.
+##
+## Any line can sit next to any card, so none says how long someone has been a
+## member, when they joined, or how long a condition has been around: MEMBER SINCE
+## and the medical history would contradict it.
 
 ## Indexed by priority: 0 ROUTINE, 1 URGENT, 2 CRITICAL. At least 8 lines per priority.
 ## No line names an injury or a treatment: any of them can sit next to any diagnosis.
@@ -9,13 +13,13 @@ const ARRIVAL: Array = [
 		"My doctor said this should be simple.",
 		"I took the morning off for this. Unpaid.",
 		"I called the number on the card. They told me to come in person.",
-		"The bill came last week. I couldn't make sense of half of it.",
+		"The bill came in the mail. I couldn't make sense of half of it.",
 		"I've got a shift at two. Will this take long?",
 		"They said to bring everything, so I brought everything.",
 		"I waited three weeks for the appointment. I'm hoping this part goes faster.",
 		"Third time filing this. First time in person.",
 		"I just want to know what I owe before it goes to collections.",
-		"Work switched us to your plan in January. I'm still figuring it out.",
+		"Work picked this plan for us. I'm still figuring out how it works.",
 		"I only went in because my doctor insisted.",
 		"Hi. I think I filled everything out right this time.",
 		"Forty-one? That's me. Sorry. I've been here since eight.",
@@ -41,7 +45,7 @@ const ARRIVAL: Array = [
 		"Please. They won't do anything until you approve it.",
 		"I signed everything they gave me. I don't remember signing half of it.",
 		"My oldest drove me here. They're circling the block.",
-		"I've paid in for twenty-two years. I need it now.",
+		"I've paid in all this time. I need it now.",
 		"Sorry. Is there somewhere I can sit?",
 		"The hospital sent me here. They said it's the last form.",
 		"They're holding a bed for me until four o'clock.",
@@ -57,7 +61,7 @@ const ARRIVAL_PARENT: Array = [
 	[ # ROUTINE
 		"This is for {child}. The pediatrician said it's routine.",
 		"{child} missed school for the appointment. I missed work. Here's the claim.",
-		"We've been on your plan since {child} was born.",
+		"We pay for {child}'s coverage out of every paycheck.",
 		"It's for {child}, who's at school right now. I'm on my lunch break.",
 		"The doctor wanted {child} seen before it got worse. So we went.",
 		"{child} was brave about it. Now it's my turn, I guess.",
@@ -118,7 +122,7 @@ const APPROVED: Array = [
 const DENIED: Array = [
 	[ # ROUTINE
 		"Okay. So what do I do now?",
-		"I've paid my premiums every month for eleven years.",
+		"I've paid my premiums every month. Every single month.",
 		"Is there someone else I can talk to?",
 		"Right. I'll just pay it, I guess. Somehow.",
 		"Can I appeal? Where do I go to appeal?",
@@ -208,7 +212,7 @@ const CODE_SPECIFIC: Dictionary = {
 	],
 	"R-05": [
 		"That was before we signed up. It was under control.",
-		"It's been there for years. That's why we got insurance.",
+		"We knew about it. That's why we got insurance.",
 		"So it's not covered because it started before?",
 	],
 	"R-06": [

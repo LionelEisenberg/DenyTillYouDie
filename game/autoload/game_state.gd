@@ -62,17 +62,32 @@ func apply_ledger(paid: Dictionary) -> String:
 
 
 ## Writes a temp file, then swaps it in, so a crash mid-write can't eat the save.
+## A write that fails never replaces the old save. On Windows the swap deletes
+## the old file before moving the new one in, so a crash in between leaves only
+## the temp file, which `_read_save` falls back to.
 func save_game() -> void:
-	var tmp := _path() + ".tmp"
-	var file := FileAccess.open(tmp, FileAccess.WRITE)
-	if file == null:
-		push_warning("Could not save: %s" % error_string(FileAccess.get_open_error()))
+	var tmp := _tmp_path()
+	if not _write_file(tmp, JSON.stringify(run.to_dict(), "\t")):
+		_remove(tmp)
 		return
-	file.store_string(JSON.stringify(run.to_dict(), "\t"))
-	file.close()
 	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(tmp), ProjectSettings.globalize_path(_path()))
 	if err != OK:
 		push_warning("Could not replace save: %s" % error_string(err))
+
+
+## Writes `text` to `path`. False if the file could not be opened or written.
+func _write_file(path: String, text: String) -> bool:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		push_warning("Could not save: %s" % error_string(FileAccess.get_open_error()))
+		return false
+	var stored := file.store_string(text)
+	var err := file.get_error()
+	file.close()
+	if not stored or err != OK:
+		push_warning("Could not save: %s" % error_string(err if err != OK else ERR_FILE_CANT_WRITE))
+		return false
+	return true
 
 
 func load_game() -> bool:
@@ -94,19 +109,42 @@ func saved_day() -> int:
 	return int(_read_save().get("day", 0))
 
 
+## Removes the save and any temp file, so a finished run can't be continued.
 func delete_save() -> void:
-	if FileAccess.file_exists(_path()):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(_path()))
+	_remove(_path())
+	_remove(_tmp_path())
 
 
+## The saved run, or {} if there is none. Falls back to the temp file when the
+## main file is missing or unreadable (a crash during the swap in `save_game`).
 func _read_save() -> Dictionary:
-	if not FileAccess.file_exists(_path()):
+	var data := _read_json(_path())
+	if data.is_empty():
+		data = _read_json(_tmp_path())
+	return data
+
+
+static func _read_json(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
 		return {}
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(_path()))
+	# A JSON instance reports a torn file quietly; JSON.parse_string logs an error.
+	var json := JSON.new()
+	if json.parse(FileAccess.get_file_as_string(path)) != OK:
+		return {}
+	var parsed: Variant = json.data
 	if parsed is Dictionary:
 		return parsed
 	return {}
 
 
+static func _remove(path: String) -> void:
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
 func _path() -> String:
 	return save_path_override if save_path_override != "" else SAVE_PATH
+
+
+func _tmp_path() -> String:
+	return _path() + ".tmp"

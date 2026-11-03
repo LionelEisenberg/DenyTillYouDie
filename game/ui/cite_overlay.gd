@@ -1,15 +1,16 @@
 class_name CiteOverlay
 extends Control
 ## Draws the red link between a cited rule and its evidence, following the
-## documents as they're dragged.
+## documents as they're dragged. The owner sizes it to the desk; it clips its
+## drawing to its own rect, so the link never spills past the desk's edge.
 
 var _a: Control
 var _b: Control
 
 
-func _ready() -> void:
+func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	clip_contents = true
 
 
 func link(a: Control, b: Control) -> void:

@@ -23,7 +23,7 @@ const RULE_DIRECTIVES: Dictionary = {
 	2: ["Directive: Out-of-network providers (R-02)", "Effective today, claims from providers outside our network are not covered. The Network Directory has been added to your rulebook. Names must match exactly. \"Close\" is not a network."],
 	3: ["Directive: Clerical accuracy (R-03)", "Effective today, a claim is only as good as its paperwork. If the name, member ID or date of birth on the claim differs from the member card in any way, deny it. Typos are the provider's responsibility."],
 	4: ["Directive: Prior authorization (R-04)", "Effective today, itemized bills are attached to every claim. Procedures on the Prior Authorization list require a PRIOR AUTH # on the claim form. No number, no coverage."],
-	5: ["Directive: Pre-existing conditions (R-05)", "Effective today, medical histories are attached to every claim. A condition on record before the card's MEMBER SINCE date is pre-existing and excluded under grandfathered plan terms. Related conditions count."],
+	5: ["Directive: Pre-existing conditions (R-05)", "Effective today, medical histories are attached to every claim. A condition on record before the card's MEMBER SINCE date is pre-existing and excluded under grandfathered plan terms. Records may list it under another name."],
 	6: ["Directive: Excluded services (R-06)", "Effective today, services on the Exclusions list are not covered. The list is in your rulebook. A physician's recommendation is not a coverage decision."],
 	7: ["Introducing DenyBot (R-07)", "Effective today, DenyBot, our proprietary review algorithm, is available for every claim. Open the DenyBot page of your rulebook and press RUN. DenyBot denials count as cited. Its reasoning is proprietary. Its accuracy is excellent."],
 }
@@ -38,10 +38,16 @@ static func build_paper(run: RunState, yesterday: Dictionary, rng: RandomNumberG
 			scripted_lead = SCRIPTED_LEADS[key]
 	var lead: Dictionary = {}
 	var items: Array[Dictionary] = []
-	var events: Array = yesterday.get("events", [])
+	var events: Array = (yesterday.get("events", []) as Array).duplicate()
 	if not events.is_empty():
-		lead = NewsPool.EVENT_LEADS[int(events.max())]
-		# An event takes the front page; the scripted story still runs, smaller.
+		# The biggest event takes the front page. Any other event that fired the
+		# same night, and the scripted story, still run, smaller.
+		events.sort()
+		events.reverse()
+		lead = NewsPool.EVENT_LEADS[int(events[0])]
+		for i in range(1, events.size()):
+			var other: Dictionary = NewsPool.EVENT_LEADS[int(events[i])]
+			items.append({"headline": other["headline"], "body": other["sub"]})
 		if not scripted_lead.is_empty():
 			items.append({"headline": scripted_lead["headline"], "body": scripted_lead["sub"]})
 	elif not scripted_lead.is_empty():
@@ -95,12 +101,10 @@ static func build_memo(run: RunState, yesterday: Dictionary) -> Dictionary:
 		var performance := _performance(yesterday)
 		if performance != "":
 			paragraphs.append(performance)
-	var effect := _effect_paragraph(run.effects)
-	if effect != "":
-		paragraphs.append(effect)
+	paragraphs.append_array(_effect_paragraphs(run.effects))
 	paragraphs.append_array(_scripted_notes(run, yesterday))
 	if run.day >= 6:
-		paragraphs.append("A Regional Director position opens Monday. Candidates must hold a denial rate of at least %d%%. Yours is currently %d%%." % [roundi(Economy.PROMOTION_RATE * 100), roundi(Endings.denial_rate(run) * 100)])
+		paragraphs.append("A Regional Director position opens Monday. Candidates must hold a denial rate of at least %d%%. Yours is currently %d%%." % [roundi(Economy.PROMOTION_RATE * 100), Endings.rate_percent(run)])
 	if run.day == 7:
 		paragraphs.append("Note: claims flagged by DenyBot have drawn unusual public attention. Use it at your discretion.")
 	return {
@@ -164,16 +168,16 @@ static func _performance(yesterday: Dictionary) -> String:
 			denied += 1
 	var parts: PackedStringArray = []
 	if not decisions.is_empty():
-		parts.append("Yesterday you processed %d claims: %d denied, %d approved." % [decisions.size(), denied, decisions.size() - denied])
+		parts.append("Yesterday you processed %s: %d denied, %d approved." % [Fmt.plural(decisions.size(), "claim"), denied, decisions.size() - denied])
 	var warnings := int(yesterday.get("warnings", 0))
 	if warnings > 0:
-		parts.append("You approved %d claim%s that had valid grounds for denial." % [warnings, "" if warnings == 1 else "s"])
+		parts.append("You approved %s that had valid grounds for denial." % Fmt.plural(warnings, "claim"))
 	var fines := int(yesterday.get("fines", 0))
 	if fines > 0:
-		parts.append("Citation fines: $%d." % fines)
+		parts.append("Citation fines: %s." % Fmt.money(fines))
 	var overturned: Array = yesterday.get("overturned", [])
 	if not overturned.is_empty():
-		parts.append("Legal lost %d appeal%s on denials you could not justify. Legal fees: $%d." % [overturned.size(), "" if overturned.size() == 1 else "s", int(yesterday.get("legal", 0))])
+		parts.append("Legal lost %s on denials you could not justify. Legal fees: %s." % [Fmt.plural(overturned.size(), "appeal"), Fmt.money(int(yesterday.get("legal", 0)))])
 	if not decisions.is_empty():
 		var rate := float(denied) / decisions.size()
 		if rate >= 0.7:
@@ -183,14 +187,17 @@ static func _performance(yesterday: Dictionary) -> String:
 	return " ".join(parts)
 
 
-static func _effect_paragraph(effects: Dictionary) -> String:
-	if effects.get("compassion", false):
-		return "Ahead of the congressional hearing, today is Compassion Day. Approvals will not be deducted from your pay, and no citations will be issued. Please approve visibly."
-	if effects.get("audit", false):
-		return "Regulators are auditing today's denials. Any denial without a cited reason will be overturned, and legal fees will apply."
+## One paragraph per active effect: two thresholds can fall on the same night,
+## and the player needs to know every rule that changed.
+static func _effect_paragraphs(effects: Dictionary) -> PackedStringArray:
+	var paragraphs: PackedStringArray = []
 	if effects.get("protest", false):
-		return "Protesters have gathered at the entrance. Use the side door. Every denial today will draw additional attention."
-	return ""
+		paragraphs.append("Protesters have gathered at the entrance. Use the side door. Every denial today will draw additional attention.")
+	if effects.get("audit", false):
+		paragraphs.append("Regulators are auditing today's denials. Uncited denials of claims with no valid grounds will be overturned, and legal fees will apply.")
+	if effects.get("compassion", false):
+		paragraphs.append("Ahead of the congressional hearing, today is Compassion Day. Approvals will not be deducted from your pay, and no citations will be issued. Please approve visibly.")
+	return paragraphs
 
 
 static func _scripted_notes(run: RunState, yesterday: Dictionary) -> PackedStringArray:
@@ -210,7 +217,7 @@ static func _scripted_notes(run: RunState, yesterday: Dictionary) -> PackedStrin
 		notes.append("Your dependent's emergency claim was reviewed under standard guidelines. Adjusters may not discuss their own claims with colleagues.")
 	var lost: Array = yesterday.get("family_deaths", [])
 	if not lost.is_empty():
-		notes.append("Benevolence Mutual extends its condolences on the loss of %s. Bereavement leave is unpaid." % " and ".join(PackedStringArray(lost)))
+		notes.append("Benevolence Mutual extends its condolences on the loss of %s. Bereavement leave is unpaid." % Fmt.join_names(PackedStringArray(lost)))
 	if run.day == 7 and run.scripted_outcomes.has("marcus") and run.scripted_outcomes["marcus"] == "denied":
 		notes.append("You may hear about Mr. Bell. Do not speak to reporters.")
 	return notes
@@ -233,7 +240,14 @@ static func _stock_change(decisions: Array, rng: RandomNumberGenerator) -> float
 			if not rec["approved"]:
 				denied += 1
 		rate = float(denied) / decisions.size()
-	return snappedf((rate - 0.45) * 8.0 + rng.randf_range(-0.6, 0.6), 0.1)
+	return _never_flat(snappedf((rate - 0.45) * 8.0 + rng.randf_range(-0.6, 0.6), 0.1), rate)
+
+
+## The ticker never prints 0.0%: a flat day still leans the way the claims went.
+static func _never_flat(change: float, rate: float) -> float:
+	if absf(change) >= 0.05:
+		return change
+	return 0.1 if rate >= 0.45 else -0.1
 
 
 static func _band(discontent: float) -> int:

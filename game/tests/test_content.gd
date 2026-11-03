@@ -71,6 +71,75 @@ func test_filler_history_never_matches_a_diagnosis() -> void:
 		t.ok(not conditions.has(entry["condition"]), "filler %s collides" % entry["label"])
 
 
+## Filler must be unrelated to every diagnosis, not just a different key, or "the
+## claimed condition under another name" stops being decidable.
+func test_filler_history_is_the_neutral_list() -> void:
+	var expected: Array[String] = [
+		"Chickenpox", "Wisdom teeth removed", "Food poisoning", "Vision correction",
+		"Shingles", "Tooth extraction", "Ingrown toenail", "Bunion",
+		"Tetanus booster", "Dental crown", "Plantar wart", "Ganglion cyst",
+	]
+	var labels: Array[String] = []
+	var keys := {}
+	for entry: Dictionary in Medical.FILLER_HISTORY:
+		labels.append(entry["label"])
+		var key: String = entry["condition"]
+		t.ok(key.begins_with("hx_"), "%s has key %s" % [entry["label"], key])
+		t.ok(not keys.has(key), "%s reuses key %s" % [entry["label"], key])
+		keys[key] = true
+		t.ok(int(entry.get("min_age", 0)) >= 1, "%s needs a min_age of at least 1" % entry["label"])
+	t.eq(labels, expected)
+
+
+func test_every_diagnosis_says_whether_it_can_kill() -> void:
+	var non_fatal: Array[String] = []
+	for dx: Dictionary in Medical.DIAGNOSES:
+		t.ok(dx.has("fatal") and typeof(dx["fatal"]) == TYPE_BOOL, "%s needs a bool fatal flag" % dx["id"])
+		if not dx.get("fatal", true):
+			non_fatal.append(dx["id"])
+	non_fatal.sort()
+	t.eq(non_fatal, ["acl_tear", "depression", "kidney_stone"] as Array[String])
+
+
+func test_r05_text_says_other_names_not_related_conditions() -> void:
+	var text: String = Rules.get_rule("R-05")["text"]
+	t.eq(text, "Deny if the medical history lists the claimed condition (sometimes under another name) dated before the card's MEMBER SINCE date.")
+	t.ok(not text.to_lower().contains("related"), "no related conditions")
+
+
+## Every line a patient can say: generic pools and the scripted cases.
+func _patient_lines() -> PackedStringArray:
+	var lines: PackedStringArray = []
+	for pools: Array in [Lines.ARRIVAL, Lines.ARRIVAL_PARENT, Lines.APPROVED, Lines.DENIED]:
+		for pool: Array in pools:
+			for line: String in pool:
+				lines.append(line)
+	for pool: Array in [Lines.APPROVED_PARENT, Lines.DENIED_PARENT, Lines.CODE_REACTIONS]:
+		for line: String in pool:
+			lines.append(line)
+	for code: String in Lines.CODE_SPECIFIC:
+		for line: String in Lines.CODE_SPECIFIC[code]:
+			lines.append(line)
+	for case_data: Dictionary in Scripted.CASES:
+		lines.append(case_data["line"])
+	for id: String in Scripted.REACTIONS:
+		lines.append(Scripted.REACTIONS[id]["approved"])
+		lines.append(Scripted.REACTIONS[id]["denied"])
+	return lines
+
+
+## Generic lines sit next to any card, so they can't say how long someone has
+## been a member, when they joined, or how long a condition has been around.
+func test_patient_lines_make_no_time_claims_a_card_could_contradict() -> void:
+	var months := "january|february|march|april|june|july|august|september|october|november|december"
+	var pattern := RegEx.create_from_string("(?i)\\b(%s|years?|born|last week|last month)\\b" % months)
+	var lines := _patient_lines()
+	t.ok(lines.size() > 150, "collected %d lines" % lines.size())
+	for line in lines:
+		var hit := pattern.search(line)
+		t.ok(hit == null, "\"%s\" says \"%s\"" % [line, hit.get_string() if hit else ""])
+
+
 func test_chronic_diagnoses_have_history_labels() -> void:
 	for dx: Dictionary in Medical.DIAGNOSES:
 		if dx["chronic"]:

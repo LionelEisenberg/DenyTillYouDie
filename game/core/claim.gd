@@ -27,6 +27,8 @@ var member_id: String = ""
 var provider: String = ""
 var date_of_service: int = 0
 var diagnosis: String = ""
+## The Medical.DIAGNOSES id behind `diagnosis` (a scripted case may reword the label).
+var diagnosis_id: String = ""
 var condition: String = ""
 var amount: int = 0
 var priority: int = Priority.ROUTINE
@@ -85,11 +87,17 @@ func priority_name() -> String:
 
 
 ## A short treatment line for the claim form on days without an itemized bill.
+## Labels stay as authored ("CT SCAN, HEAD", "tPA"), the way the bill prints them.
 func treatment_summary() -> String:
 	var parts: PackedStringArray = []
 	for line in bill_lines:
-		parts.append(String(line["label"]).capitalize())
+		parts.append(String(line["label"]))
 	return " / ".join(parts)
+
+
+## Whether the diagnosis can kill if it goes untreated. Unknown ids count as fatal.
+func is_fatal() -> bool:
+	return bool(Medical.diagnosis(diagnosis_id).get("fatal", true))
 
 
 ## The facts the newspaper, memos and endings need after the shift.
@@ -103,4 +111,5 @@ func summary() -> Dictionary:
 		"scripted_id": scripted_id,
 		"child": is_child(),
 		"is_player": is_player,
+		"fatal": is_fatal(),
 	}

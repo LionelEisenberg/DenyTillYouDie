@@ -16,10 +16,13 @@ const DAY_HINTS: PackedStringArray = [
 	"New rule R-02: check the claim's PROVIDER against the NETWORK tab in your rulebook.",
 	"New rule R-03: NAME, MEMBER ID and DATE OF BIRTH on the claim must match the card exactly.",
 	"New: itemized bill. Procedures on the PRIOR AUTH tab need a PRIOR AUTH # on the claim.",
-	"New: medical history. The claimed condition on record before MEMBER SINCE is pre-existing.",
+	"New: medical history. The claimed condition (maybe under another name) before MEMBER SINCE is pre-existing.",
 	"New: EXCLUSIONS tab. Any excluded line on the bill is grounds for denial.",
 	"New: DenyBot. Rulebook > DENYBOT > RUN DENYBOT works on any claim.",
 ]
+
+const DENYBOT_ANALYZING := "ANALYZING..."
+const DENYBOT_VERDICT := "DETERMINATION: DENY\nREASON: PROPRIETARY\nCONFIDENCE: 99.7%"
 
 var day: int = 1
 var claims: Array[Claim] = []
@@ -36,6 +39,9 @@ var _sel_key: String = ""
 var _sel_key_row: FieldRow
 ## The rule and evidence rows of the current citation, kept red until the stamp.
 var _cited_rows: Array[FieldRow] = []
+## Bumped by every citation and every new patient, so a DenyBot run still
+## ANALYZING can tell that the desk moved on without it.
+var _citation_serial: int = 0
 var _docs: Array[DocumentView] = []
 var _claim_doc: DocumentView
 var _rng := RandomNumberGenerator.new()
@@ -92,6 +98,7 @@ func call_next_patient() -> void:
 	current = claims[index]
 	stamped = false
 	cited_rule = ""
+	_citation_serial += 1
 	_cited_rows.clear()
 	_clear_selection()
 	_overlay.clear()
@@ -169,8 +176,7 @@ func _on_rule_clicked(rule_id: String, row: FieldRow) -> void:
 		_rulebook.show_page("DENYBOT")
 		_on_denybot_pressed()
 		return
-	if _sel_rule_row and is_instance_valid(_sel_rule_row):
-		_sel_rule_row.set_mark(FieldRow.Mark.NONE)
+	_unmark(_sel_rule_row)
 	_sel_rule = rule_id
 	_sel_rule_row = row
 	row.set_mark(FieldRow.Mark.SELECTED)
@@ -181,8 +187,7 @@ func _on_rule_clicked(rule_id: String, row: FieldRow) -> void:
 func _on_evidence_clicked(key: String, row: FieldRow) -> void:
 	if not inspect or active_claim() == null:
 		return
-	if _sel_key_row and is_instance_valid(_sel_key_row):
-		_sel_key_row.set_mark(FieldRow.Mark.NONE)
+	_unmark(_sel_key_row)
 	_sel_key = key
 	_sel_key_row = row
 	row.set_mark(FieldRow.Mark.SELECTED)
@@ -217,8 +222,10 @@ func _apply_citation(rule_id: String, rule_row: FieldRow, key_row: FieldRow) -> 
 		for doc in _docs:
 			doc.clear_marks()
 	cited_rule = rule_id
-	_set_inspect(false)
+	_citation_serial += 1
+	# Forget the old citation first, so leaving inspect mode doesn't paint its rows red again.
 	_cited_rows.clear()
+	_set_inspect(false)
 	for row: FieldRow in [rule_row, key_row]:
 		if row:
 			row.set_mark(FieldRow.Mark.VALID)
@@ -238,13 +245,17 @@ func _apply_citation(rule_id: String, rule_row: FieldRow, key_row: FieldRow) -> 
 func _run_denybot() -> bool:
 	if day < 7 or active_claim() == null:
 		return false
-	_rulebook.show_denybot_result("DETERMINATION: DENY\nREASON: PROPRIETARY\nCONFIDENCE: 99.7%")
+	_rulebook.show_denybot_result(DENYBOT_VERDICT)
 	_overlay.clear()
+	cited_rule = Rules.R07
+	_citation_serial += 1
+	_cited_rows.clear()
+	# DenyBot needs no evidence: drop inspect mode and any half-made selection,
+	# or the next click on a paper would pair with a rule picked before.
+	_set_inspect(false)
 	_rulebook.clear_marks()
 	for doc in _docs:
 		doc.clear_marks()
-	cited_rule = Rules.R07
-	_cited_rows.clear()
 	_flash_banner("DENYBOT: DENY (R-07)")
 	_cite_label.text = "CITED: R-07 ALGORITHMIC DETERMINATION"
 	_deny_button.text = "DENY (R-07)"
@@ -256,11 +267,17 @@ func _run_denybot() -> bool:
 func _on_denybot_pressed() -> void:
 	if active_claim() == null:
 		return
-	_rulebook.show_denybot_result("ANALYZING...")
+	var serial := _citation_serial
+	_rulebook.show_denybot_result(DENYBOT_ANALYZING)
 	Sfx.play("click")
 	await wait(0.8)
-	if active_claim() != null:
-		_run_denybot()
+	if active_claim() == null or serial != _citation_serial:
+		# The player cited something by hand, stamped or moved on while DenyBot
+		# thought it over. Their call stands; only the stale "ANALYZING..." goes.
+		if _rulebook.denybot_text() == DENYBOT_ANALYZING:
+			_rulebook.show_denybot_result("")
+		return
+	_run_denybot()
 
 
 var _banner_tween: Tween
@@ -282,24 +299,34 @@ func _flash_banner(text: String) -> void:
 
 
 func _clear_selection() -> void:
-	for row in [_sel_rule_row, _sel_key_row]:
-		if row and is_instance_valid(row):
-			(row as FieldRow).set_mark(FieldRow.Mark.NONE)
+	for row: Variant in [_sel_rule_row, _sel_key_row]:
+		_unmark(row)
 	_sel_rule = ""
 	_sel_key = ""
 	_sel_rule_row = null
 	_sel_key_row = null
 
 
+## Clears a missed citation's grey marks after a moment.
 func _clear_selection_later(rule_row: FieldRow, key_row: FieldRow) -> void:
 	_sel_rule = ""
 	_sel_key = ""
 	_sel_rule_row = null
 	_sel_key_row = null
 	await wait(0.6)
-	for row: FieldRow in [rule_row, key_row]:
-		if row and is_instance_valid(row):
-			row.set_mark(FieldRow.Mark.VALID if _cited_rows.has(row) else FieldRow.Mark.NONE)
+	for row: Variant in [rule_row, key_row]:
+		# A row the player has already picked again keeps its live selection.
+		if is_instance_valid(row) and row != _sel_rule_row and row != _sel_key_row:
+			_unmark(row)
+
+
+## Takes a selection or miss mark off `row`: back to red if the row belongs to
+## the current citation, plain otherwise. Accepts null and freed rows.
+func _unmark(row: Variant) -> void:
+	if not is_instance_valid(row):
+		return
+	var field := row as FieldRow
+	field.set_mark(FieldRow.Mark.VALID if _cited_rows.has(field) else FieldRow.Mark.NONE)
 
 
 func _set_inspect(on: bool) -> void:
@@ -447,8 +474,6 @@ func _build() -> void:
 	_build_desk()
 	_build_tray()
 	_build_top_bar()
-	_overlay = CiteOverlay.new()
-	add_child(_overlay)
 	_bind_buttons()
 
 
@@ -523,6 +548,12 @@ func _build_desk() -> void:
 	_rulebook.rule_clicked.connect(_on_rule_clicked)
 	_rulebook.denybot_pressed.connect(_on_denybot_pressed)
 	_desk.add_child(_rulebook)
+	# The red citation link covers exactly the desk and clips to it, so a paper
+	# dragged half off the desk can't draw it over the booth or the top bar.
+	_overlay = CiteOverlay.new()
+	_overlay.position = _desk.position
+	_overlay.size = DESK_SIZE
+	_stage.add_child(_overlay)
 	_desk_frame = Panel.new()
 	var frame_box := UiTheme.flat_box(Color(0, 0, 0, 0), Palette.HIGHLIGHT, 4, 0, 0)
 	frame_box.draw_center = false
@@ -617,9 +648,10 @@ func _refresh_hint() -> void:
 	if current == null:
 		text = "Press NEXT! to call the first patient."
 	elif stamped:
-		text = "That's everyone. Press END SHIFT." if index >= claims.size() - 1 else "Press NEXT! for the next patient."
-		if current.is_player:
-			text = ""
+		# Nothing while the papers clear: NEXT! stays disabled for a moment, and
+		# stamp() refreshes this once it's live again.
+		if not _next_button.disabled and not current.is_player:
+			text = "That's everyone. Press END SHIFT." if index >= claims.size() - 1 else "Press NEXT! for the next patient."
 	elif inspect:
 		text = "INSPECTING: click a rule in the rulebook, then the field that breaks it. Esc to stop."
 	elif cited_rule != "":

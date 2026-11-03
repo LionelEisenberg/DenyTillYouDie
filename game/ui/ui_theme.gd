@@ -13,18 +13,41 @@ static var _font: FontFile
 static var _theme: Theme
 
 
+## The pixel font, with gray antialiasing (also set in its .import). The
+## 1920x1080 canvas is drawn scaled to fit the window (0.833 in the default
+## 1600x900 one), and unsmoothed pixel glyphs at fractional scales clump into
+## blobs. See fit_font_to_scale() for the whole-number case.
 static func font() -> FontFile:
 	if _font == null:
 		_font = load(FONT_PATH)
-		_font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+		_font.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
 		_font.hinting = TextServer.HINTING_NONE
 		_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	return _font
 
 
+## Smooths the font only where it helps. At a whole-number scale (a 1920x1080 or
+## 3840x2160 window) the glyphs land on whole pixels and plain rendering is
+## sharpest: antialiasing there would only grey the half-pixel edges of 24 px
+## text. At any other scale the font keeps its gray antialiasing.
+static func fit_font_to_scale(scale: float) -> void:
+	var whole := scale >= 1.0 and is_equal_approx(scale, roundf(scale))
+	var mode := TextServer.FONT_ANTIALIASING_NONE if whole else TextServer.FONT_ANTIALIASING_GRAY
+	if font().antialiasing != mode:
+		font().antialiasing = mode
+
+
+## fit_font_to_scale() for the scale `window` draws the canvas at.
+static func fit_font_to_window(window: Window) -> void:
+	fit_font_to_scale(window.get_final_transform().get_scale().x)
+
+
 static func build() -> Theme:
 	if _theme != null:
 		return _theme
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null and tree.root != null:
+		fit_font_to_window(tree.root)
 	var t := Theme.new()
 	t.default_font = font()
 	t.default_font_size = SIZE_BODY
@@ -122,17 +145,12 @@ static func rect(color: Color, size: Vector2 = Vector2.ZERO) -> ColorRect:
 
 ## "$1,234" / "-$56".
 static func money(amount: int) -> String:
-	var digits := str(absi(amount))
-	var grouped := ""
-	while digits.length() > 3:
-		grouped = "," + digits.substr(digits.length() - 3) + grouped
-		digits = digits.substr(0, digits.length() - 3)
-	return ("-" if amount < 0 else "") + "$" + digits + grouped
+	return Fmt.money(amount)
 
 
 ## "+$15" / "-$6" for deltas.
 static func signed_money(amount: int) -> String:
-	return ("+" if amount >= 0 else "") + money(amount)
+	return Fmt.signed_money(amount)
 
 
 static func margin(child: Control, left: int, top: int, right: int, bottom: int) -> MarginContainer:

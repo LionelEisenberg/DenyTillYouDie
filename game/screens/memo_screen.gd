@@ -24,6 +24,10 @@ func _ready() -> void:
 	_show(0)
 
 
+func on_shown() -> void:
+	_button.grab_focus()
+
+
 func _advance() -> void:
 	if _page < _pages.size() - 1:
 		Sfx.play("paper")
@@ -37,7 +41,6 @@ func _show(page: int) -> void:
 	for i in _pages.size():
 		_pages[i].visible = i == page
 	_button.text = "READ LETTER" if page < _pages.size() - 1 else "BEGIN SHIFT  (DAY %d)" % GameState.run.day
-	_button.call_deferred("grab_focus")
 
 
 func _memo_page(memo: Dictionary) -> Control:

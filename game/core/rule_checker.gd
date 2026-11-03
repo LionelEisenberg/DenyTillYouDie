@@ -19,13 +19,15 @@ static func violations(c: Claim, day: int) -> Array[Dictionary]:
 	if unlocked.has(Rules.R02) and not Medical.is_in_network(c.provider):
 		found.append(_violation(Rules.R02, ["claim.provider", "bill.provider"]))
 
+	# The bill copies the claim's name; the medical history copies the card's name
+	# and birth date. Every copy shows the mismatch.
 	if unlocked.has(Rules.R03):
 		if c.name != c.card_name:
-			found.append(_violation(Rules.R03, ["claim.name", "card.name", "bill.patient"]))
+			found.append(_violation(Rules.R03, ["claim.name", "card.name", "bill.patient", "history.name"]))
 		if c.member_id != c.card_member_id:
 			found.append(_violation(Rules.R03, ["claim.member_id", "card.member_id"]))
 		if c.dob != c.card_dob:
-			found.append(_violation(Rules.R03, ["claim.dob", "card.dob"]))
+			found.append(_violation(Rules.R03, ["claim.dob", "card.dob", "history.dob"]))
 
 	if unlocked.has(Rules.R04) and c.prior_auth.strip_edges() == "":
 		var keys: PackedStringArray = []

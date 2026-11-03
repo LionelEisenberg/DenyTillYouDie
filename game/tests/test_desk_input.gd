@@ -43,13 +43,24 @@ func _press(at: Vector2, pressed: bool) -> void:
 	tree.root.push_input(e)
 
 
-func _move(from: Vector2, to: Vector2) -> void:
+func _move(from: Vector2, to: Vector2, mask: int = MOUSE_BUTTON_MASK_LEFT) -> void:
 	var e := InputEventMouseMotion.new()
 	e.position = to
 	e.global_position = to
 	e.relative = to - from
-	e.button_mask = MOUSE_BUTTON_MASK_LEFT
+	e.button_mask = mask
 	tree.root.push_input(e)
+
+
+## A real key press and release, as the keyboard sends it.
+func _key(keycode: Key, unicode: int = 0) -> void:
+	for pressed: bool in [true, false]:
+		var e := InputEventKey.new()
+		e.keycode = keycode
+		e.physical_keycode = keycode
+		e.unicode = unicode
+		e.pressed = pressed
+		tree.root.push_input(e)
 
 
 func _click(c: Control) -> void:
@@ -119,3 +130,48 @@ func test_clicks_outside_inspect_mode_do_not_select() -> void:
 	_click(row)
 	await tree.process_frame
 	t.eq(desk._sel_key, "", "no selection without inspect mode")
+
+
+func test_a_motion_without_the_button_ends_a_drag() -> void:
+	desk.call_next_patient()
+	await tree.process_frame
+	var doc := desk._claim_doc
+	doc.move_to_front()
+	await tree.process_frame
+	var grab := _screen_pos(doc, Vector2(doc.size.x / 2.0, 12))
+	var scale := (tree.root.get_final_transform() * doc.get_global_transform_with_canvas()).get_scale().x
+	_move(grab, grab)
+	_press(grab, true)
+	await tree.process_frame
+	t.ok(doc._dragging, "pressing on the paper starts a drag")
+	# The mouse-up happened outside the window, so it never arrived: the next
+	# motion comes in with no button held.
+	var lost := grab + Vector2(40, 20) * scale
+	_move(grab, lost, 0)
+	await tree.process_frame
+	t.ok(not doc._dragging, "a motion with no button held ends the drag")
+	var before := doc.position
+	_move(lost, lost + Vector2(100, 50) * scale)
+	await tree.process_frame
+	t.eq(doc.position, before, "and the paper no longer follows the mouse")
+	_press(lost + Vector2(100, 50) * scale, false)
+	await tree.process_frame
+
+
+func test_space_after_clicking_approve_inspects_and_stamps_nothing() -> void:
+	desk.call_next_patient()
+	await tree.process_frame
+	_click(desk._approve_button)
+	await tree.process_frame
+	t.eq(gs.run.stats["processed"], 1, "the click on APPROVE stamped the claim")
+	_click(desk._next_button)
+	await tree.process_frame
+	var claim := desk.active_claim()
+	t.ok(claim != null, "the click on NEXT! called the next patient")
+	var focus := tree.root.gui_get_focus_owner()
+	t.ok(focus not in [desk._approve_button, desk._deny_button, desk._next_button, desk._inspect_button], "no desk button kept keyboard focus")
+	_key(KEY_SPACE, 32)
+	await tree.process_frame
+	t.ok(desk.inspect, "Space toggles inspect")
+	t.ok(desk.active_claim() == claim, "the new claim is still open")
+	t.eq(gs.run.stats["processed"], 1, "and Space stamped nothing")

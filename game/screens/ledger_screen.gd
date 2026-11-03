@@ -1,8 +1,9 @@
 class_name LedgerScreen
 extends ScreenBase
 ## The night: today's pay, the bills, and the family. Rent is mandatory; food,
-## heat and medicine are choices.
+## heat and medicine are choices. Shows whatever bills close_shift() returns.
 
+## Tonight's ledger. Defaults to GameState.close_shift(); tests may set it first.
 var ledger: Dictionary = {}
 var _toggles: Dictionary = {}
 var _remaining_label: Label
@@ -10,7 +11,8 @@ var _sleep: Button
 
 
 func _ready() -> void:
-	ledger = GameState.close_shift()
+	if ledger.is_empty():
+		ledger = GameState.close_shift()
 	var bg := UiTheme.rect(Palette.BG_DARK)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
@@ -38,7 +40,10 @@ func _ready() -> void:
 	row.add_child(_sleep)
 	column.add_child(row)
 	_update_remaining()
-	_sleep.call_deferred("grab_focus")
+
+
+func on_shown() -> void:
+	_sleep.grab_focus()
 
 
 func paid_choices() -> Dictionary:
@@ -79,17 +84,21 @@ func _expense_column() -> Control:
 	col.custom_minimum_size = Vector2(620, 0)
 	col.add_theme_constant_override("separation", 6)
 	col.add_child(UiTheme.label("EXPENSES", UiTheme.SIZE_TITLE, Palette.INK))
+	var evicted: bool = ledger["evicted"]
 	for bill: Dictionary in ledger["bills"]:
 		var toggle := Button.new()
 		toggle.toggle_mode = true
-		toggle.button_pressed = bill["default_on"]
-		toggle.disabled = bill["mandatory"] or ledger["evicted"]
+		# Without rent money nothing gets paid tonight, so nothing shows as paid.
+		toggle.button_pressed = bill["default_on"] and not evicted
+		toggle.disabled = bill["mandatory"] or evicted
 		toggle.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		toggle.add_theme_font_size_override("font_size", UiTheme.SIZE_BODY)
 		for state in ["normal", "hover", "pressed", "disabled", "hover_pressed"]:
 			toggle.add_theme_stylebox_override(state, UiTheme.flat_box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, 4, 2))
-		for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_disabled_color", "font_focus_color"]:
+		for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 			toggle.add_theme_color_override(color_name, Palette.INK)
+		# Rows the player can't change are printed faded, so they don't read as clickable.
+		toggle.add_theme_color_override("font_disabled_color", Palette.INK_FADED)
 		toggle.set_meta("bill", bill)
 		toggle.toggled.connect(_on_toggled.bind(toggle))
 		_label_toggle(toggle)
@@ -130,7 +139,10 @@ func _on_toggled(on: bool, toggle: Button) -> void:
 
 func _label_toggle(toggle: Button) -> void:
 	var bill: Dictionary = toggle.get_meta("bill")
-	toggle.text = "[%s]  %s  %s" % ["X" if toggle.button_pressed else " ", bill["label"], UiTheme.money(int(bill["amount"]))]
+	var text := "[%s]  %s  %s" % ["X" if toggle.button_pressed else " ", bill["label"], UiTheme.money(int(bill["amount"]))]
+	if ledger["evicted"]:
+		text += " (unpaid)"
+	toggle.text = text
 
 
 func _remaining() -> int:

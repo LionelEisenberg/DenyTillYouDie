@@ -6,7 +6,7 @@ How the code is organized, the conventions it follows, and the traps already fou
 
 | Folder | What lives there | Rule |
 |---|---|---|
-| `core/` | Game rules: claims, rule checker, generator, economy, shift and night logic, news writer, endings, run state, dates | Pure static functions or `RefCounted`. No nodes, no scenes, no autoload access. Everything here is unit-tested headless. |
+| `core/` | Game rules: claims, rule checker, generator, economy, shift and night logic, news writer, endings, run state, dates, `Fmt` (money, plurals, name lists) | Pure static functions or `RefCounted`. No nodes, no scenes, no autoload access. Everything here is unit-tested headless. |
 | `content/` | Tables and text: procedures, diagnoses, providers, names, rules, patient lines, news pools, scripted cases | Data plus tiny helpers. |
 | `ui/` | Widgets built in code: documents, field rows, rulebook, portraits, stamps, meters, palette and theme | Each widget is a `class_name` script. No game rules. |
 | `screens/` | One `ScreenBase` per screen, plus `main.gd`, the enum state machine that swaps them | Screens call `GameState`; they emit `done(payload)` and `main.gd` decides what's next. |
@@ -21,10 +21,11 @@ Signals go up, calls go down. There is no global event bus.
 
 - **Static typing everywhere:** typed variables, typed arrays, return types. Tabs for indentation, two blank lines between functions.
 - **UI is built in code.** Use `UiTheme.label()`, `UiTheme.para()` (wrapping), `UiTheme.button()`, `UiTheme.rect()`, `UiTheme.flat_box()` and `UiTheme.paper_box()`. Colors come from `Palette`, never ad-hoc hex values in widgets.
-- **Font sizes are 16, 24, 32, 48 or 96 only** (`UiTheme.SIZE_*`). MatchupPro is a pixel font and only renders crisp at multiples of 8.
+- **Font sizes are 16, 24, 32, 48 or 96 only** (`UiTheme.SIZE_*`). MatchupPro's design pixel is 1/16 em, so 16/32/48/96 land on whole pixels at 1:1. `UiTheme.fit_font_to_scale()` turns antialiasing off at whole-number canvas scales (crisp pixels) and on at fractional ones (the default 1600x900 window), where unsmoothed pixel text turns into blobs. Evidence text (bill lines, history dates, treatment) is 24 px so it stays readable when scaled down.
 - **Glyphs:** MatchupPro has ASCII plus é. No em dashes, ™, curly quotes, ÷, arrows or bullets in game text. `test_content.gd::test_font_covers_all_game_text` fails if one sneaks in.
 - **Mouse:** decorative nodes use `MOUSE_FILTER_IGNORE`. A `DocumentView` drags from event-local positions; its `FieldRow`s pass clicks through unless inspect mode is on.
-- **Keyboard:** desk buttons take no focus (`FOCUS_NONE`), because Space is both inspect and `ui_accept`. Menu screens grab focus on their first button.
+- **Keyboard:** desk buttons take no focus (`FOCUS_NONE`), because Space is both inspect and `ui_accept`. Menu screens grab focus in `on_shown()`, which `main.gd` calls after the fade-in, never in `_ready()`: a key pressed during a fade must not press a button the player hasn't seen. The fade blocks the mouse while it's visible.
+- **Money and plurals:** format money with `Fmt.money()` (`UiTheme.money()` delegates to it), counts with `Fmt.plural()`, name lists with `Fmt.join_names()`.
 - **Containers reset child rotation and scale.** To tilt something inside a container, put it in a plain `Control` holder.
 - **Determinism:** randomness comes from `RandomNumberGenerator`s seeded from the run seed (plus day and purpose), so a reload replays the same day.
 - **Never name an enum `Expression`.** It collides with a built-in class (`PortraitView` uses `Mood`).

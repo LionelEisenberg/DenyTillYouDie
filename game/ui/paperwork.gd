@@ -1,6 +1,7 @@
 class_name Paperwork
 ## Builds the documents for one patient. Every visible fact is a citable row, so
-## which rows are clickable never gives the answer away.
+## which rows are clickable never gives the answer away. Evidence is set at
+## SIZE_BODY: 16 px text is unreadable once the canvas is scaled to the window.
 
 const BLANK := "__________"
 
@@ -21,7 +22,7 @@ static func claim_form(c: Claim) -> DocumentView:
 	if c.shows_bill():
 		d.add_field("TREATMENT", "See itemized bill", "claim.treatment", Palette.INK_FADED)
 	else:
-		d.add_field("TREATMENT", c.treatment_summary(), "claim.treatment", Palette.INK, UiTheme.SIZE_SMALL)
+		d.add_field("TREATMENT", c.treatment_summary(), "claim.treatment")
 	d.add_field("AMOUNT", UiTheme.money(c.amount), "claim.amount")
 	d.add_field("PRIORITY", c.priority_name(), "claim.priority", priority_color(c.priority))
 	if c.shows_bill():
@@ -62,7 +63,7 @@ static func itemized_bill(c: Claim) -> DocumentView:
 		var line := c.bill_lines[i]
 		d.add_line_item(line["label"], UiTheme.money(int(line["cost"])), "bill.line.%d" % i)
 	d.add_rule()
-	d.add_line_item("TOTAL DUE", UiTheme.money(c.bill_total()), "bill.total", UiTheme.SIZE_BODY, UiTheme.SIZE_BODY)
+	d.add_line_item("TOTAL DUE", UiTheme.money(c.bill_total()), "bill.total", UiTheme.SIZE_TITLE, UiTheme.SIZE_TITLE)
 	return d
 
 
@@ -88,6 +89,8 @@ static func citation_slip(warning: int, fine: int) -> DocumentView:
 	d.add_text("Approved a claim with valid grounds for denial.", UiTheme.SIZE_SMALL, Palette.INK)
 	if fine > 0:
 		d.add_text("Fine deducted: %s" % UiTheme.money(fine), UiTheme.SIZE_BODY, Palette.RED_DARK)
+	elif warning < Economy.FREE_WARNINGS:
+		d.add_text("Warning %d of %d. One more before fines start." % [warning, Economy.FREE_WARNINGS], UiTheme.SIZE_SMALL, Palette.INK)
 	else:
 		d.add_text("Warning %d of %d. Further citations today will be fined." % [warning, Economy.FREE_WARNINGS], UiTheme.SIZE_SMALL, Palette.INK)
 	d.add_text("-Claims Integrity", UiTheme.SIZE_SMALL, Palette.INK_FADED)

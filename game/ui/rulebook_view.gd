@@ -8,6 +8,10 @@ signal rule_clicked(rule_id: String, row: FieldRow)
 signal denybot_pressed
 
 const WIDTH := 420.0
+## Wrap width for text on a page, and inside a (padded) rule row. Everything on
+## a page wraps at or under these, so no page can push the book wider than WIDTH.
+const PAGE_TEXT_WIDTH := WIDTH - 40.0
+const RULE_TEXT_WIDTH := WIDTH - 60.0
 
 var denybot_button: Button
 var denybot_result: Label
@@ -57,6 +61,10 @@ func show_denybot_result(text: String) -> void:
 		denybot_result.text = text
 
 
+func denybot_text() -> String:
+	return denybot_result.text if denybot_result else ""
+
+
 func _add_page(page_name: String, tab_bar: HBoxContainer, page: Control) -> void:
 	var tab := UiTheme.button(page_name, UiTheme.SIZE_SMALL)
 	tab.add_theme_stylebox_override("normal", UiTheme.flat_box(Palette.PAPER_SHADE, Palette.INK_FADED, 2, 8, 2))
@@ -78,14 +86,15 @@ func _rules_page(day: int) -> Control:
 	var page := VBoxContainer.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	page.add_theme_constant_override("separation", 6)
-	page.add_child(UiTheme.para("Deny when a claim breaks one of these rules. To cite: press INSPECT, click the rule, then the evidence.", WIDTH - 40, UiTheme.SIZE_SMALL, Palette.INK_FADED))
+	page.add_child(UiTheme.para("Deny when a claim breaks one of these rules. To cite: press INSPECT, click the rule, then the evidence.", PAGE_TEXT_WIDTH, UiTheme.SIZE_SMALL, Palette.INK_FADED))
 	for rule_id in Rules.unlocked(day):
 		var rule := Rules.get_rule(rule_id)
 		var stack := VBoxContainer.new()
 		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		stack.add_theme_constant_override("separation", 0)
-		stack.add_child(UiTheme.label("%s  %s" % [rule_id, String(rule["title"]).to_upper()], UiTheme.SIZE_BODY, Palette.INK))
-		stack.add_child(UiTheme.para(rule["text"], WIDTH - 60, UiTheme.SIZE_SMALL, Palette.INK_FADED))
+		# Titles wrap too: "R-07  ALGORITHMIC DETERMINATION (DENYBOT)" is wider than the book.
+		stack.add_child(UiTheme.para("%s  %s" % [rule_id, String(rule["title"]).to_upper()], RULE_TEXT_WIDTH, UiTheme.SIZE_BODY, Palette.INK))
+		stack.add_child(UiTheme.para(rule["text"], RULE_TEXT_WIDTH, UiTheme.SIZE_SMALL, Palette.INK_FADED))
 		var row := FieldRow.wrap(stack, rule_id)
 		row.clicked.connect(func(r: FieldRow) -> void: rule_clicked.emit(r.key, r))
 		rows.append(row)
@@ -97,11 +106,11 @@ func _list_page(title: String, note: String, items: PackedStringArray, item_size
 	var page := VBoxContainer.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	page.add_theme_constant_override("separation", 0)
-	page.add_child(UiTheme.label(title, UiTheme.SIZE_BODY, Palette.INK))
-	page.add_child(UiTheme.para(note, WIDTH - 40, UiTheme.SIZE_SMALL, Palette.INK_FADED))
+	page.add_child(UiTheme.para(title, PAGE_TEXT_WIDTH, UiTheme.SIZE_BODY, Palette.INK))
+	page.add_child(UiTheme.para(note, PAGE_TEXT_WIDTH, UiTheme.SIZE_SMALL, Palette.INK_FADED))
 	page.add_child(UiTheme.rect(Color(0, 0, 0, 0), Vector2(0, 6)))
 	for item in items:
-		page.add_child(UiTheme.label("- " + item, item_size, Palette.INK))
+		page.add_child(UiTheme.para("- " + item, PAGE_TEXT_WIDTH, item_size, Palette.INK))
 	return page
 
 
@@ -110,12 +119,12 @@ func _denybot_page() -> Control:
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	page.add_theme_constant_override("separation", 10)
 	page.add_child(UiTheme.label("DENYBOT v2.3", UiTheme.SIZE_BIG, Palette.RED_DARK))
-	page.add_child(UiTheme.para("Proprietary algorithmic claim review. DenyBot determinations count as cited denials (R-07). Reasoning is not available.", WIDTH - 40, UiTheme.SIZE_SMALL, Palette.INK_FADED))
+	page.add_child(UiTheme.para("Proprietary algorithmic claim review. DenyBot determinations count as cited denials (R-07). Reasoning is not available.", PAGE_TEXT_WIDTH, UiTheme.SIZE_SMALL, Palette.INK_FADED))
 	denybot_button = UiTheme.button("RUN DENYBOT", UiTheme.SIZE_BODY)
 	denybot_button.disabled = true
 	denybot_button.focus_mode = Control.FOCUS_NONE
 	denybot_button.pressed.connect(func() -> void: denybot_pressed.emit())
 	page.add_child(denybot_button)
-	denybot_result = UiTheme.para("", WIDTH - 40, UiTheme.SIZE_BODY, Palette.RED_DARK)
+	denybot_result = UiTheme.para("", PAGE_TEXT_WIDTH, UiTheme.SIZE_BODY, Palette.RED_DARK)
 	page.add_child(denybot_result)
 	return page

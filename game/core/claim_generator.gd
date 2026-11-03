@@ -5,6 +5,7 @@ extends RefCounted
 ## Random claims break at most one rule, chosen from the rules unlocked that day;
 ## clean claims carry decoys (cards that expire soon, prior-auth procedures with an
 ## auth number, conditions diagnosed after enrollment) so the player has to read.
+## The provider follows from what was billed: a family clinic never bills surgery.
 
 const PATIENTS_PER_DAY: Array[int] = [5, 6, 7, 7, 8, 8, 7]
 const VIOLATION_TARGET: Array[float] = [0.40, 0.50, 0.55, 0.60, 0.60, 0.65, 0.65]
@@ -22,6 +23,23 @@ const ADULT_AGES := [18, 88]
 const CHILD_AGES := [2, 15]
 const HOSPITALS: PackedStringArray = ["Riverside General Hospital", "St. Agnes Medical Center", "Mercer County Hospital"]
 const ORTHO_DIAGNOSES: PackedStringArray = ["wrist_fx", "ankle_sprain", "acl_tear", "hip_fx"]
+## Procedures only a hospital bills (or the cancer institute, or orthopedics).
+const HOSPITAL_PROCS: PackedStringArray = [
+	"er_visit", "icu_stay", "inpatient_stay", "observation", "appendectomy", "acl_surgery",
+	"hip_replacement", "gallbladder", "cardiac_cath", "stent", "stroke_tpa", "dialysis", "chemo", "radiation",
+]
+## Share of children with office or urgent-care problems seen by the pediatrician.
+const PEDIATRICS_SHARE := 0.6
+## Coverage starts at least this many days before the date of service.
+const ENROLLMENT_LEAD := 20
+## A pre-existing record (R-05) is dated at least a year after birth, and between
+## PRE_EXISTING_GAP and PRE_EXISTING_SPAN days before MEMBER SINCE.
+const RECORD_MIN_AGE_DAYS := 365
+const PRE_EXISTING_GAP := 30
+const PRE_EXISTING_SPAN := 1400
+## The youngest patient with a pre-existing condition: on record at one, enrolled
+## after that, and a claim after that.
+const PRE_EXISTING_MIN_AGE := 3
 const VOWELS := "aeiou"
 
 var run_seed: int
@@ -46,6 +64,7 @@ func generate_day(day: int) -> Array[Claim]:
 			claims.append(random_claim(day, rng))
 	if day == 7:
 		claims.append(make_player_claim(day))
+	_make_claim_numbers_unique(claims)
 	return claims
 
 
@@ -59,11 +78,17 @@ func random_claim(day: int, rng: RandomNumberGenerator) -> Claim:
 	if not child and not dx["adult_ok"]:
 		child = true
 	var full_name := "%s %s" % [Names.FIRST[rng.randi_range(0, Names.FIRST.size() - 1)], Names.LAST[rng.randi_range(0, Names.LAST.size() - 1)]]
-	var c := _build(day, dx, _pick_age(dx, child, rng), full_name, rng)
+	var age := _pick_age(dx, child, rng)
+	if rule == Rules.R05:
+		age = maxi(age, PRE_EXISTING_MIN_AGE)
+	var c := _build(day, dx, age, full_name, rng)
 	if rule == "":
 		_add_decoys(c, dx, rng)
 	else:
 		_plant(c, rule, dx, rng)
+	# Picked last, from the final bill. An R-02 plant has already chosen one.
+	if c.provider == "":
+		c.provider = _pick_provider(c, rng)
 	c.amount = c.bill_total()
 	return c
 
@@ -72,7 +97,7 @@ func make_scripted(case_data: Dictionary, day: int, rng: RandomNumberGenerator) 
 	var dx := Medical.diagnosis(case_data["dx"])
 	var c := _build(day, dx, case_data["age"], case_data["name"], rng)
 	c.scripted_id = case_data["id"]
-	c.provider = case_data.get("provider", c.provider)
+	c.diagnosis = case_data.get("diagnosis", c.diagnosis)
 	c.arrival_line = case_data["line"]
 	c.sticky_note = case_data.get("sticky_note", "")
 	c.exempt_from_citation = case_data.get("exempt", false)
@@ -90,6 +115,13 @@ func make_scripted(case_data: Dictionary, day: int, rng: RandomNumberGenerator) 
 			_sort_history(c)
 		Rules.R06:
 			c.bill_lines.append(Claim.make_line(case_data["addon"]))
+	if case_data.has("member_years"):
+		var years := float(case_data["member_years"])
+		c.member_since = c.date_of_service - roundi(years * 365.25) - rng.randi_range(10, 150)
+	if case_data.has("provider"):
+		c.provider = case_data["provider"]
+	else:
+		c.provider = _pick_provider(c, rng)
 	c.amount = c.bill_total()
 	return c
 
@@ -117,6 +149,8 @@ func make_player_claim(day: int) -> Claim:
 
 # --- building blocks -------------------------------------------------------
 
+## The claim before any rule is broken. The provider is left blank: it depends on
+## what ends up on the bill.
 func _build(day: int, dx: Dictionary, age: int, full_name: String, rng: RandomNumberGenerator) -> Claim:
 	var c := Claim.new()
 	var today := DateUtil.game_date(day)
@@ -133,12 +167,12 @@ func _build(day: int, dx: Dictionary, age: int, full_name: String, rng: RandomNu
 	c.plan = Medical.PLANS[rng.randi_range(0, Medical.PLANS.size() - 1)]
 	c.date_of_service = today - rng.randi_range(2, 40)
 	c.member_since = maxi(c.card_dob + 30, today - rng.randi_range(240, 3200))
-	c.member_since = mini(c.member_since, c.date_of_service - 20)
+	c.member_since = mini(c.member_since, c.date_of_service - ENROLLMENT_LEAD)
 	c.coverage_through = DateUtil.from_ymd(PLAN_YEAR_END.x, PLAN_YEAR_END.y, PLAN_YEAR_END.z)
 	c.diagnosis = dx["label"]
+	c.diagnosis_id = dx["id"]
 	c.condition = dx["condition"]
 	c.priority = dx["priority"]
-	c.provider = _pick_provider(dx, c.is_child(), rng)
 	for proc_id: String in dx["procs"]:
 		c.bill_lines.append(Claim.make_line(proc_id))
 	_refresh_prior_auth(c, rng)
@@ -170,15 +204,26 @@ func _plant(c: Claim, rule: String, dx: Dictionary, rng: RandomNumberGenerator) 
 				c.bill_lines.append(Claim.make_line(addons[rng.randi_range(0, addons.size() - 1)]))
 			c.prior_auth = ""
 		Rules.R05:
-			var earliest := c.card_dob + 365
-			var when := maxi(earliest, c.member_since - rng.randi_range(45, 1400))
-			if when >= c.member_since:
-				when = c.member_since - 1
-			c.history.append({"date": when, "label": dx["history_label"], "condition": dx["condition"]})
-			_sort_history(c)
+			_plant_pre_existing(c, dx, rng)
 		Rules.R06:
 			var excluded: Array = dx["excluded_addons"]
 			c.bill_lines.append(Claim.make_line(excluded[rng.randi_range(0, excluded.size() - 1)]))
+
+
+## A record of the claimed condition before MEMBER SINCE, dated after the patient's
+## first birthday and at least PRE_EXISTING_GAP days before enrollment. A child
+## enrolled as a baby leaves no room for that, so their card says they joined later.
+func _plant_pre_existing(c: Claim, dx: Dictionary, rng: RandomNumberGenerator) -> void:
+	var earliest := c.card_dob + RECORD_MIN_AGE_DAYS
+	if c.member_since - PRE_EXISTING_GAP < earliest:
+		var first := earliest + PRE_EXISTING_GAP
+		var last := c.date_of_service - ENROLLMENT_LEAD
+		if first > last:
+			push_error("%s: patient aged %d is too young for a pre-existing condition" % [c.claim_no, c.age])
+		c.member_since = rng.randi_range(first, maxi(first, last))
+	var when := rng.randi_range(maxi(earliest, c.member_since - PRE_EXISTING_SPAN), c.member_since - PRE_EXISTING_GAP)
+	c.history.append({"date": when, "label": dx["history_label"], "condition": dx["condition"]})
+	_sort_history(c)
 
 
 ## Harmless details that look like they might be violations.
@@ -197,10 +242,11 @@ func _add_decoys(c: Claim, dx: Dictionary, rng: RandomNumberGenerator) -> void:
 		c.bill_lines.append(Claim.make_line(pa_addons[rng.randi_range(0, pa_addons.size() - 1)]))
 		_refresh_prior_auth(c, rng)
 	if dx["chronic"] and rng.randf() < 0.25:
-		var span := c.date_of_service - c.member_since
-		if span > 2:
-			var when := c.member_since + rng.randi_range(1, span - 1)
-			c.history.append({"date": when, "label": dx["history_label"], "condition": dx["condition"]})
+		# Diagnosed after enrollment (and, like any record, after the first birthday).
+		var first := maxi(c.member_since + 1, c.card_dob + RECORD_MIN_AGE_DAYS)
+		var last := c.date_of_service - 1
+		if last >= first:
+			c.history.append({"date": rng.randi_range(first, last), "label": dx["history_label"], "condition": dx["condition"]})
 			_sort_history(c)
 
 
@@ -323,19 +369,26 @@ func _pick_age(dx: Dictionary, child: bool, rng: RandomNumberGenerator) -> int:
 	return rng.randi_range(lo, hi)
 
 
-func _pick_provider(dx: Dictionary, child: bool, rng: RandomNumberGenerator) -> String:
-	var procs: Array = dx["procs"]
-	if child and rng.randf() < 0.6:
-		return "Elm Street Pediatrics"
-	if procs.has("oncology_consult"):
+## Who billed the claim, judged from the final bill: cancer care comes from the
+## cancer institute, orthopedics without an ER visit from the orthopedic group,
+## anything hospital-level from a hospital. Only what's left (office and
+## urgent-care problems) goes to the pediatrician, urgent care or family clinic.
+func _pick_provider(c: Claim, rng: RandomNumberGenerator) -> String:
+	var billed: Array[String] = []
+	for line in c.bill_lines:
+		billed.append(line["id"])
+	if billed.has("oncology_consult"):
 		return "Westbrook Cancer Institute"
-	if procs.has("urgent_care"):
-		return "Harborview Urgent Care"
-	if procs.has("office_visit") or procs.has("psych_eval"):
-		return "Northgate Family Clinic"
-	if ORTHO_DIAGNOSES.has(dx["id"]) and rng.randf() < 0.5:
+	if ORTHO_DIAGNOSES.has(c.diagnosis_id) and not billed.has("er_visit"):
 		return "Lakeside Orthopedics"
-	return HOSPITALS[rng.randi_range(0, HOSPITALS.size() - 1)]
+	for proc_id in billed:
+		if HOSPITAL_PROCS.has(proc_id):
+			return HOSPITALS[rng.randi_range(0, HOSPITALS.size() - 1)]
+	if c.is_child() and rng.randf() < PEDIATRICS_SHARE:
+		return "Elm Street Pediatrics"
+	if billed.has("urgent_care"):
+		return "Harborview Urgent Care"
+	return "Northgate Family Clinic"
 
 
 func _dob_for_age(age: int, today: int, rng: RandomNumberGenerator) -> int:
@@ -348,18 +401,20 @@ func _dob_for_age(age: int, today: int, rng: RandomNumberGenerator) -> int:
 	return dob
 
 
+## One to three unrelated old entries (one for toddlers), each dated after the
+## patient was old enough for it (FILLER_HISTORY `min_age`) and at least a month ago.
 func _filler_history(c: Claim, today: int, rng: RandomNumberGenerator) -> Array[Dictionary]:
+	var latest := today - 30
+	var pool: Array[Dictionary] = []
+	for entry: Dictionary in Medical.FILLER_HISTORY:
+		if c.card_dob + int(entry["min_age"]) * 365 <= latest:
+			pool.append(entry)
+	var count := mini(rng.randi_range(1, 3) if c.age >= 4 else 1, pool.size())
 	var entries: Array[Dictionary] = []
-	var count := rng.randi_range(1, 3) if c.age >= 4 else 1
-	var used: Array[int] = []
-	var earliest := c.card_dob + 180
 	for i in count:
-		var pick := rng.randi_range(0, Medical.FILLER_HISTORY.size() - 1)
-		if used.has(pick):
-			continue
-		used.append(pick)
-		var entry: Dictionary = Medical.FILLER_HISTORY[pick]
-		entries.append({"date": rng.randi_range(earliest, today - 30), "label": entry["label"], "condition": entry["condition"]})
+		var entry: Dictionary = pool.pop_at(rng.randi_range(0, pool.size() - 1))
+		var earliest := c.card_dob + int(entry["min_age"]) * 365
+		entries.append({"date": rng.randi_range(earliest, latest), "label": entry["label"], "condition": entry["condition"]})
 	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["date"]) < int(b["date"]))
 	return entries
 
@@ -378,3 +433,21 @@ func _refresh_prior_auth(c: Claim, rng: RandomNumberGenerator) -> void:
 
 func _sort_history(c: Claim) -> void:
 	c.history.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["date"]) < int(b["date"]))
+
+
+## Claim numbers come from each patient's own draw, so two can collide. Later
+## patients step to the next free number; the result depends only on the seed.
+func _make_claim_numbers_unique(claims: Array[Claim]) -> void:
+	var used := {}
+	for c in claims:
+		while used.has(c.claim_no):
+			c.claim_no = _next_claim_no(c.claim_no)
+		used[c.claim_no] = true
+
+
+## "BM-0302-4417" -> "BM-0302-4418"; the four-digit serial wraps 9999 -> 1000.
+static func _next_claim_no(claim_no: String) -> String:
+	var serial := int(claim_no.right(4)) + 1
+	if serial > 9999:
+		serial = 1000
+	return "%s%04d" % [claim_no.left(-4), serial]

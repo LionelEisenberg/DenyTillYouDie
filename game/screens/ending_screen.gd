@@ -3,6 +3,7 @@ extends ScreenBase
 ## The last front page, an epilogue, and the week in numbers.
 
 var page: Dictionary = {}
+var _back: Button
 
 
 func _ready() -> void:
@@ -41,10 +42,13 @@ func _ready() -> void:
 	stats_box.add_child(stats)
 	body.add_child(stats_box)
 
-	var back := UiTheme.button("RETURN TO TITLE", UiTheme.SIZE_BODY, 320)
-	back.pressed.connect(func() -> void: finish({}))
+	_back = UiTheme.button("RETURN TO TITLE", UiTheme.SIZE_BODY, 320)
+	_back.pressed.connect(func() -> void: finish({}))
 	var holder := HBoxContainer.new()
 	holder.alignment = BoxContainer.ALIGNMENT_END
-	holder.add_child(back)
+	holder.add_child(_back)
 	column.add_child(holder)
-	back.call_deferred("grab_focus")
+
+
+func on_shown() -> void:
+	_back.grab_focus()

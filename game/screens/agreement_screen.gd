@@ -4,6 +4,7 @@ extends ScreenBase
 ## on day 7.
 
 var name_edit: LineEdit
+var back_button: Button
 
 
 func _ready() -> void:
@@ -38,12 +39,12 @@ func _ready() -> void:
 	sign_row.add_child(date)
 	column.add_child(sign_row)
 
-	var back := UiTheme.button("BACK", UiTheme.SIZE_BODY, 160)
-	back.pressed.connect(func() -> void: finish({"back": true}))
+	back_button = UiTheme.button("BACK", UiTheme.SIZE_BODY, 160)
+	back_button.pressed.connect(func() -> void: finish({"back": true}))
 	var sign := UiTheme.button("SIGN AND START WORK", UiTheme.SIZE_BODY, 360)
 	sign.pressed.connect(_sign)
 	var holder := HBoxContainer.new()
-	holder.add_child(back)
+	holder.add_child(back_button)
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	holder.add_child(gap)
@@ -52,7 +53,10 @@ func _ready() -> void:
 	if GameState.has_save():
 		column.add_child(UiTheme.label("Signing starts a new week and replaces your saved one.", UiTheme.SIZE_SMALL, Palette.RED_DARK))
 	column.add_child(UiTheme.label("*Terms, conditions and exclusions apply.", UiTheme.SIZE_SMALL, Palette.INK_FADED))
-	name_edit.call_deferred("grab_focus")
+
+
+func on_shown() -> void:
+	name_edit.grab_focus()
 
 
 func _sign() -> void:

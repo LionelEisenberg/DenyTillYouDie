@@ -33,7 +33,7 @@ const ALL: Array[Dictionary] = [
 	{
 		"id": R05, "day": 5, "title": "Pre-existing condition",
 		"short": "Condition on record before enrollment.",
-		"text": "Deny if the medical history shows the claimed condition, or a related one, dated before the card's MEMBER SINCE date.",
+		"text": "Deny if the medical history lists the claimed condition (sometimes under another name) dated before the card's MEMBER SINCE date.",
 	},
 	{
 		"id": R06, "day": 6, "title": "Excluded service",

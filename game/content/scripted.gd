@@ -1,11 +1,16 @@
 class_name Scripted
 ## Hand-written moral cases, one per day, each deniable under that day's new
 ## rule, plus the player's own claim on day 7.
+##
+## Optional keys: "diagnosis" rewords the claim's diagnosis label; "member_years"
+## puts MEMBER SINCE that many years before the date of service, for stories that
+## say how long someone paid in.
 
 const CASES: Array[Dictionary] = [
 	{
 		"id": "walt", "day": 1, "slot": 2, "name": "Walt Brennan", "age": 58,
 		"dx": "heart_attack", "rule": "R-01", "provider": "St. Agnes Medical Center",
+		"member_years": 19,
 		"line": "My premium payment bounced while I was in the ICU. I wasn't awake to fix it.",
 	},
 	{
@@ -32,7 +37,7 @@ const CASES: Array[Dictionary] = [
 	},
 	{
 		"id": "marcus", "day": 6, "slot": 4, "name": "Marcus Bell", "age": 52,
-		"dx": "colon_cancer", "rule": "R-06", "provider": "Westbrook Cancer Institute",
+		"dx": "colon_cancer", "diagnosis": "Colon cancer, stage IV", "rule": "R-06", "provider": "Westbrook Cancer Institute",
 		"addon": "immunotherapy_exp",
 		"line": "It's the only thing left. The trial numbers are good.",
 	},

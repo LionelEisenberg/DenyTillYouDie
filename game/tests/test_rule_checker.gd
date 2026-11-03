@@ -21,7 +21,7 @@ func _clean(day: int = 7) -> Claim:
 	c.condition = "wrist_fracture"
 	c.bill_lines = [Claim.make_line("er_visit"), Claim.make_line("xray_wrist"), Claim.make_line("cast")]
 	c.amount = c.bill_total()
-	c.history = [{"date": DateUtil.from_ymd(2015, 5, 1), "label": "Tonsillectomy", "condition": "hx_tonsils"}]
+	c.history = [{"date": DateUtil.from_ymd(2015, 5, 1), "label": "Chickenpox", "condition": "hx_chickenpox"}]
 	return c
 
 
@@ -53,6 +53,23 @@ func test_bill_copies_of_facts_count_as_evidence() -> void:
 	var typo := _clean()
 	typo.name = "Maria Okafur"
 	t.ok(RuleChecker.check_citation(typo, "R-03", "bill.patient", 4), "bill carries the misspelled name")
+
+
+## The medical history prints the card's name and birth date, so either copy
+## shows a clerical mismatch as well as the card does.
+func test_history_copies_of_card_facts_count_as_evidence() -> void:
+	var typo := _clean(5)
+	typo.name = "Maria Okafur"
+	t.ok(RuleChecker.check_citation(typo, "R-03", "history.name", 5), "history shows the card's spelling")
+	t.ok(not RuleChecker.check_citation(typo, "R-03", "history.dob", 5), "a name typo isn't in the birth date")
+	var shifted := _clean(5)
+	shifted.dob += 2
+	t.ok(RuleChecker.check_citation(shifted, "R-03", "history.dob", 5), "history shows the card's birth date")
+	t.ok(not RuleChecker.check_citation(shifted, "R-03", "history.name", 5), "a birth-date slip isn't in the name")
+	var id_slip := _clean(5)
+	id_slip.member_id = "BMH-483-2297"
+	t.ok(not RuleChecker.check_citation(id_slip, "R-03", "history.name", 5), "the history has no member ID")
+	t.ok(not RuleChecker.check_citation(_clean(5), "R-03", "history.name", 5), "a clean claim has nothing to cite")
 
 
 func test_r01_coverage_ending_on_service_day_is_clean() -> void:

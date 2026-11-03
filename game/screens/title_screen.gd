@@ -2,6 +2,9 @@ class_name TitleScreen
 extends ScreenBase
 ## Title: continue a saved week, start a new one, or quit.
 
+## CONTINUE when there's a save, otherwise NEW GAME. Focused by on_shown().
+var first_button: Button
+
 
 func _ready() -> void:
 	add_child(_fill(Palette.BG_DARK))
@@ -33,18 +36,16 @@ func _ready() -> void:
 	column.add_child(subtitle)
 	column.add_child(UiTheme.rect(Color(0, 0, 0, 0), Vector2(0, 40)))
 
-	var first: Button
 	if GameState.has_save():
 		var resume := _menu_button("CONTINUE  (DAY %d)" % GameState.saved_day(), column)
 		resume.pressed.connect(func() -> void: finish({"action": "continue"}))
-		first = resume
+		first_button = resume
 	var start := _menu_button("NEW GAME", column)
 	start.pressed.connect(func() -> void: finish({"action": "new"}))
-	if first == null:
-		first = start
+	if first_button == null:
+		first_button = start
 	var quit := _menu_button("QUIT", column)
 	quit.pressed.connect(func() -> void: get_tree().quit())
-	first.call_deferred("grab_focus")
 
 	var footer := UiTheme.label("We care.*            *Terms, conditions and exclusions apply.", UiTheme.SIZE_SMALL, Palette.TEXT_DIM)
 	footer.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
@@ -55,6 +56,10 @@ func _ready() -> void:
 	var controls := UiTheme.label("F11 toggles fullscreen", UiTheme.SIZE_SMALL, Palette.WALL_LIGHT)
 	controls.position = Vector2(24, 1080 - 40)
 	add_child(controls)
+
+
+func on_shown() -> void:
+	first_button.grab_focus()
 
 
 func _menu_button(text: String, parent: Control) -> Button:

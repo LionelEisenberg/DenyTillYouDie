@@ -153,6 +153,7 @@ func _play_day_by_the_book(sleep: bool = true) -> void:
 func _show(screen: ScreenBase, shot_name: String, free_after: bool = true) -> void:
 	screen.fast = true
 	root.add_child(screen)
+	screen.on_shown()
 	await _frames(3)
 	await _shot(shot_name)
 	if free_after:

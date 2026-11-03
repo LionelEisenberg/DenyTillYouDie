@@ -17,6 +17,13 @@ func finish(payload: Dictionary = {}) -> void:
 	done.emit(payload)
 
 
+## Called by Main once the screen has fully faded in (at once in fast mode).
+## Screens grab keyboard focus here, not in _ready: a key pressed during the
+## fade must not press a default button the player hasn't seen yet.
+func on_shown() -> void:
+	pass
+
+
 ## Waits `seconds`, or not at all in fast mode.
 func wait(seconds: float) -> void:
 	if fast or not is_inside_tree():

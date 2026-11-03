@@ -155,3 +155,132 @@ func test_next_patient_requires_a_stamp() -> void:
 	var first := desk.active_claim()
 	desk.call_next_patient()
 	t.ok(desk.active_claim() == first, "can't skip an unstamped patient")
+
+
+## Waits (in real time) until `condition` holds or `seconds` pass.
+func _until(condition: Callable, seconds: float = 4.0) -> void:
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while not condition.call() and Time.get_ticks_msec() < deadline:
+		await tree.process_frame
+
+
+func test_denybot_drops_a_half_made_selection() -> void:
+	await _desk_on_day(7)
+	desk.call_next_patient()
+	desk._set_inspect(true)
+	desk._on_rule_clicked("R-01", desk._rulebook.find_rule_row("R-01"))
+	t.eq(desk._sel_rule, "R-01", "a rule is picked")
+	desk._rulebook.show_page("DENYBOT")
+	desk._rulebook.denybot_button.pressed.emit()
+	await tree.process_frame
+	t.eq(desk.cited_rule, "R-07", "DenyBot cites")
+	t.ok(not desk.inspect, "inspect mode ends")
+	t.eq(desk._sel_rule, "", "the picked rule is dropped")
+	t.ok(desk._sel_rule_row == null, "no selected row left behind")
+	# A later click on a paper can't pair with the forgotten rule.
+	desk._on_evidence_clicked("claim.claim_no", desk._find_evidence_row("claim.claim_no"))
+	t.eq(desk.cited_rule, "R-07", "citation unchanged")
+	t.eq(gs.run.today["fees"], 0, "no compliance fee")
+
+
+func test_manual_citation_during_denybot_analysis_stands() -> void:
+	await _desk_on_day(7)
+	var c: Claim = await _next_violating()
+	t.ok(c != null, "found a violating claim")
+	var v: Dictionary = RuleChecker.violations(c, desk.day)[0]
+	desk.fast = false
+	desk._on_denybot_pressed()
+	desk.fast = true
+	t.eq(desk._rulebook.denybot_text(), DeskScreen.DENYBOT_ANALYZING, "DenyBot is thinking")
+	t.ok(desk.try_cite(v["rule"], (v["evidence"] as PackedStringArray)[0]), "the player cites by hand meanwhile")
+	await tree.create_timer(1.0).timeout
+	t.eq(desk.cited_rule, v["rule"], "DenyBot's late verdict doesn't overwrite the citation")
+	t.eq(desk._rulebook.denybot_text(), "", "and ANALYZING... is cleared")
+	t.eq(desk._deny_button.text, "DENY (%s)" % v["rule"])
+
+
+func test_stamping_during_denybot_analysis_clears_it() -> void:
+	await _desk_on_day(7)
+	desk.call_next_patient()
+	desk.fast = false
+	desk._on_denybot_pressed()
+	desk.fast = true
+	await desk.stamp(false)
+	await tree.create_timer(1.0).timeout
+	t.eq(desk._rulebook.denybot_text(), "", "no ANALYZING... left on a stamped claim")
+	t.eq(desk.cited_rule, "", "and no citation after the fact")
+
+
+func test_pressing_denybot_twice_keeps_the_verdict() -> void:
+	await _desk_on_day(7)
+	desk.call_next_patient()
+	desk.fast = false
+	desk._on_denybot_pressed()
+	desk._on_denybot_pressed()
+	desk.fast = true
+	await tree.create_timer(1.0).timeout
+	t.eq(desk.cited_rule, "R-07")
+	t.eq(desk._rulebook.denybot_text(), DeskScreen.DENYBOT_VERDICT, "the second run doesn't blank the first one's verdict")
+
+
+func test_picking_away_from_a_cited_row_keeps_it_red() -> void:
+	var c: Claim = await _next_violating()
+	var v: Dictionary = RuleChecker.violations(c, desk.day)[0]
+	var key: String = (v["evidence"] as PackedStringArray)[0]
+	t.ok(desk.try_cite(v["rule"], key))
+	var key_row := desk._find_evidence_row(key)
+	var other := desk._find_evidence_row("claim.claim_no")
+	desk._set_inspect(true)
+	desk._on_evidence_clicked(key, key_row)
+	t.eq(key_row.get_mark(), FieldRow.Mark.SELECTED, "the cited row is picked again")
+	desk._on_evidence_clicked("claim.claim_no", other)
+	t.eq(key_row.get_mark(), FieldRow.Mark.VALID, "picking another row puts it back to red, not blank")
+	desk._set_inspect(false)
+	t.eq(other.get_mark(), FieldRow.Mark.NONE, "an uncited row goes blank")
+	t.eq(key_row.get_mark(), FieldRow.Mark.VALID)
+
+
+func test_cancelling_inspect_keeps_the_citation_red() -> void:
+	var c: Claim = await _next_violating()
+	var v: Dictionary = RuleChecker.violations(c, desk.day)[0]
+	t.ok(desk.try_cite(v["rule"], (v["evidence"] as PackedStringArray)[0]))
+	var rule_row := desk._rulebook.find_rule_row(v["rule"])
+	desk._set_inspect(true)
+	desk._on_rule_clicked(v["rule"], rule_row)
+	t.eq(rule_row.get_mark(), FieldRow.Mark.SELECTED, "the cited rule is picked again")
+	desk._set_inspect(false)
+	t.eq(rule_row.get_mark(), FieldRow.Mark.VALID, "Esc leaves it red")
+	t.eq(desk.cited_rule, v["rule"])
+
+
+func test_a_fading_miss_leaves_a_fresh_pick_alone() -> void:
+	desk.call_next_patient()
+	desk._set_inspect(true)
+	var rule_row := desk._rulebook.find_rule_row("R-01")
+	var wrong := desk._find_evidence_row("claim.claim_no")
+	desk.fast = false
+	desk._on_rule_clicked("R-01", rule_row)
+	desk._on_evidence_clicked("claim.claim_no", wrong)
+	desk.fast = true
+	t.eq(rule_row.get_mark(), FieldRow.Mark.INVALID, "a miss greys both rows")
+	desk._on_rule_clicked("R-01", rule_row)
+	await tree.create_timer(0.9).timeout
+	t.eq(rule_row.get_mark(), FieldRow.Mark.SELECTED, "the rule picked again stays highlighted")
+	t.eq(desk._sel_rule, "R-01", "and selected")
+	t.eq(wrong.get_mark(), FieldRow.Mark.NONE, "the missed evidence clears")
+
+
+func test_no_next_hint_while_next_is_disabled() -> void:
+	desk.call_next_patient()
+	desk.fast = false
+	desk.stamp(true)
+	t.ok(desk._next_button.disabled, "NEXT! waits while the papers clear")
+	t.eq(desk._hint_label.text, "", "so the hint doesn't point at it")
+	await _until(func() -> bool: return not desk._next_button.disabled)
+	t.ok(not desk._next_button.disabled, "NEXT! comes back")
+	t.eq(desk._hint_label.text, "Press NEXT! for the next patient.", "and the hint with it")
+
+
+func test_citation_link_is_clipped_to_the_desk() -> void:
+	t.eq(desk._overlay.get_global_rect(), desk._desk.get_global_rect(), "the link layer covers exactly the desk")
+	t.ok(desk._overlay.clip_contents, "and clips what it draws to it")

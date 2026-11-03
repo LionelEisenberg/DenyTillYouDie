@@ -2,6 +2,13 @@ extends RefCounted
 
 var t: TestContext
 
+## Lines only a hospital (or the cancer institute, or an orthopedic surgeon) bills.
+const HOSPITAL_LEVEL: PackedStringArray = [
+	"er_visit", "icu_stay", "inpatient_stay", "observation", "appendectomy", "acl_surgery",
+	"hip_replacement", "gallbladder", "cardiac_cath", "stent", "stroke_tpa", "dialysis", "chemo", "radiation",
+]
+const CLINICS: PackedStringArray = ["Northgate Family Clinic", "Harborview Urgent Care", "Elm Street Pediatrics"]
+
 
 func _fingerprint(claims: Array[Claim]) -> String:
 	var parts: PackedStringArray = []
@@ -75,6 +82,138 @@ func test_history_dates_never_tie_member_since() -> void:
 		for entry: Dictionary in c.history:
 			if entry["condition"] == c.condition:
 				t.ok(DateUtil.fmt(int(entry["date"])) != DateUtil.fmt(c.member_since), "%s: %s ties member since" % [c.claim_no, entry["label"]])
+
+
+## A pre-existing record needs a patient old enough to have one and a clear gap
+## before enrollment: no "diagnosed at four weeks old", no "the day before".
+func test_pre_existing_records_are_plausibly_dated() -> void:
+	var gen := ClaimGenerator.new(41, "Pat Doe")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 41
+	var planted := 0
+	var children := 0
+	for i in 6000:
+		var c := gen.random_claim(5 + i % 3, rng)
+		t.ok(c.member_since <= c.date_of_service - 20, "%s enrolled %d days before service" % [c.claim_no, c.date_of_service - c.member_since])
+		for entry: Dictionary in c.history:
+			var when := int(entry["date"])
+			if entry["condition"] != c.condition or when >= c.member_since:
+				continue
+			planted += 1
+			if c.is_child():
+				children += 1
+			t.ok(when >= c.card_dob + 365, "%s: %s on record at %d days old" % [c.claim_no, entry["label"], when - c.card_dob])
+			t.ok(when <= c.member_since - 30, "%s: %s on record %d days before member since" % [c.claim_no, entry["label"], c.member_since - when])
+	t.ok(planted > 500, "pre-existing records checked: %d" % planted)
+	t.ok(children > 10, "children's pre-existing records checked: %d" % children)
+
+
+## Nothing in a history predates the patient's first birthday or postdates today:
+## filler respects each entry's min_age, and decoys follow the same rule.
+func test_history_entries_fit_the_patients_age() -> void:
+	var gen := ClaimGenerator.new(43, "Pat Doe")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 43
+	var min_age := {}
+	for entry: Dictionary in Medical.FILLER_HISTORY:
+		min_age[entry["condition"]] = int(entry["min_age"])
+	for i in 3000:
+		var c := gen.random_claim(5 + i % 3, rng)
+		t.ok(not c.history.is_empty(), "%s has a medical history" % c.claim_no)
+		for entry: Dictionary in c.history:
+			var when := int(entry["date"])
+			var years := int(min_age.get(entry["condition"], 1))
+			t.ok(when >= c.card_dob + years * 365, "%s: %s at %d days old" % [c.claim_no, entry["label"], when - c.card_dob])
+			t.ok(when < DateUtil.game_date(c.day), "%s: %s dated in the future" % [c.claim_no, entry["label"]])
+
+
+func test_claim_numbers_unique_within_a_day() -> void:
+	var repeats: PackedStringArray = []
+	for seed_value in 400:
+		var gen := ClaimGenerator.new(seed_value, "Pat Doe")
+		for day in range(1, 8):
+			var seen := {}
+			for c in gen.generate_day(day):
+				if seen.has(c.claim_no):
+					repeats.append("seed %d day %d %s" % [seed_value, day, c.claim_no])
+				seen[c.claim_no] = true
+	t.eq(repeats.size(), 0, ", ".join(repeats))
+
+
+## A family clinic, urgent care or pediatric office doesn't bill an ER visit, a
+## surgery, an ICU stay, chemo or dialysis.
+func test_providers_bill_what_they_can_provide() -> void:
+	var gen := ClaimGenerator.new(51, "Pat Doe")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 51
+	var seen := {}
+	for i in 4000:
+		var c := gen.random_claim(1 + i % 7, rng)
+		seen[c.provider] = true
+		var billed: Array[String] = []
+		for line in c.bill_lines:
+			billed.append(line["id"])
+		if CLINICS.has(c.provider):
+			for proc_id in billed:
+				t.ok(not HOSPITAL_LEVEL.has(proc_id), "%s: %s bills %s" % [c.claim_no, c.provider, proc_id])
+		if c.provider == "Elm Street Pediatrics":
+			t.ok(c.is_child(), "%s: pediatrics treating a %d-year-old" % [c.claim_no, c.age])
+		if not Medical.is_in_network(c.provider):
+			t.ok(c.provider != "University Children's Hospital" or c.is_child(), "%s: adult at the children's hospital" % c.claim_no)
+			continue
+		if billed.has("oncology_consult"):
+			t.eq(c.provider, "Westbrook Cancer Institute", "%s: cancer care" % c.claim_no)
+		elif ClaimGenerator.ORTHO_DIAGNOSES.has(c.diagnosis_id) and not billed.has("er_visit"):
+			t.eq(c.provider, "Lakeside Orthopedics", "%s: orthopedics without an ER visit" % c.claim_no)
+	for p: String in ["Northgate Family Clinic", "Harborview Urgent Care", "Elm Street Pediatrics", "Lakeside Orthopedics", "Westbrook Cancer Institute"]:
+		t.ok(seen.has(p), "nobody went to %s" % p)
+	var hospitals := 0
+	for h in ClaimGenerator.HOSPITALS:
+		if seen.has(h):
+			hospitals += 1
+	t.eq(hospitals, ClaimGenerator.HOSPITALS.size(), "every hospital sees patients")
+
+
+func test_claims_record_their_diagnosis_id() -> void:
+	var gen := ClaimGenerator.new(21, "Pat Doe")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	var non_fatal := 0
+	for i in 500:
+		var c := gen.random_claim(1 + i % 7, rng)
+		var dx := Medical.diagnosis(c.diagnosis_id)
+		t.ok(not dx.is_empty(), "%s has diagnosis id '%s'" % [c.claim_no, c.diagnosis_id])
+		t.eq(c.diagnosis, dx.get("label", ""), c.claim_no)
+		t.eq(c.summary()["fatal"], dx.get("fatal", true), "%s (%s)" % [c.claim_no, c.diagnosis_id])
+		if not c.summary()["fatal"]:
+			non_fatal += 1
+	t.ok(non_fatal > 0, "some random claims are not fatal: %d" % non_fatal)
+	for day in range(1, 8):
+		for c in gen.generate_day(day):
+			var dx := Medical.diagnosis(c.diagnosis_id)
+			t.eq(dx.get("condition", ""), c.condition, "%s (%s)" % [c.claim_no, c.scripted_id])
+	var claims := gen.generate_day(7)
+	t.eq(claims[claims.size() - 1].diagnosis_id, Scripted.PLAYER["dx"], "player claim")
+
+
+## His daughter's letter says he paid in for nineteen years; the card has to agree.
+func test_walt_member_for_nineteen_years() -> void:
+	var slot: int = Scripted.get_case("walt")["slot"]
+	for seed_value in [1, 2, 3, 14, 2026]:
+		var walt: Claim = ClaimGenerator.new(seed_value, "Pat Doe").generate_day(1)[slot]
+		t.eq(walt.scripted_id, "walt")
+		var years := DateUtil.age_on(walt.member_since, walt.date_of_service)
+		t.ok(years >= 18 and years <= 20, "seed %d: member for %d years" % [seed_value, years])
+		t.ok(walt.coverage_through < walt.date_of_service, "seed %d: still lapsed" % seed_value)
+
+
+func test_marcus_is_end_stage() -> void:
+	var slot: int = Scripted.get_case("marcus")["slot"]
+	var marcus: Claim = ClaimGenerator.new(14, "Pat Doe").generate_day(6)[slot]
+	t.eq(marcus.scripted_id, "marcus")
+	t.eq(marcus.diagnosis, "Colon cancer, stage IV")
+	t.eq(marcus.diagnosis_id, "colon_cancer")
+	t.eq(marcus.summary()["diagnosis"], "Colon cancer, stage IV")
 
 
 func test_bill_totals_match_amount() -> void:
