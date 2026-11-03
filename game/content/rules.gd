@@ -41,9 +41,9 @@ const ALL: Array[Dictionary] = [
 		"text": "Deny if any billed line appears on the Exclusions list, regardless of medical opinion.",
 	},
 	{
-		"id": R07, "day": 7, "title": "Algorithmic determination (DenyBot™)",
-		"short": "DenyBot™ has reviewed this claim.",
-		"text": "DenyBot™ may be consulted on any claim. Its determinations are final, proprietary and not subject to explanation.",
+		"id": R07, "day": 7, "title": "Algorithmic determination (DenyBot)",
+		"short": "DenyBot has reviewed this claim.",
+		"text": "DenyBot may be consulted on any claim. Its determinations are final, proprietary and not subject to explanation.",
 	},
 ]
 

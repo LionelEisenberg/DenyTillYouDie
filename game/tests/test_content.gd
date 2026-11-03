@@ -94,6 +94,20 @@ func test_rules_one_per_day() -> void:
 	t.eq(Rules.get_rule("R-04")["title"], "No prior authorization")
 
 
+func test_font_covers_all_game_text() -> void:
+	var font: FontFile = load("res://assets/fonts/MatchupPro.ttf")
+	var dirs := ["res://content/", "res://core/", "res://screens/", "res://ui/", "res://autoload/"]
+	for dir in dirs:
+		for file_name in DirAccess.get_files_at(dir):
+			if not file_name.ends_with(".gd"):
+				continue
+			var text := FileAccess.get_file_as_string(dir + file_name)
+			for i in text.length():
+				var code := text.unicode_at(i)
+				if code > 126 and not font.has_char(code):
+					t.ok(false, "%s has %s (U+%04X), missing from MatchupPro" % [file_name, String.chr(code), code])
+
+
 func test_name_pools_are_big_enough() -> void:
 	t.ok(Names.FIRST.size() >= 60, "first names")
 	t.ok(Names.LAST.size() >= 60, "last names")

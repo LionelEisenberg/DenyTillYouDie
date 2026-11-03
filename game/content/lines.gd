@@ -162,7 +162,7 @@ const APPROVED_PARENT: Array[String] = [
 ## At least 5.
 const DENIED_PARENT: Array[String] = [
 	"How do I explain this to my kid?",
-	"How much is it without insurance? Never mind. I saw.",
+	"I saw the bill. We can't pay that.",
 	"I'll pick up extra shifts. I'll figure something out.",
 	"Please. Look at it one more time.",
 	"I don't know what to tell the doctors.",
@@ -228,12 +228,14 @@ const CODE_SPECIFIC: Dictionary = {
 ## An empty child_name falls back to "my kid".
 static func arrival(priority: int, parent: bool, child_name: String, rng: RandomNumberGenerator) -> String:
 	var tier := clampi(priority, 0, 2)
+	var pool: Array = ARRIVAL_PARENT[tier] if parent else ARRIVAL[tier]
+	var line := _pick(pool, rng)
 	if not parent:
-		return _pick(ARRIVAL[tier], rng)
+		return line
 	var who := child_name.strip_edges()
 	if who.is_empty():
 		who = "my kid"
-	var line := _pick(ARRIVAL_PARENT[tier], rng).replace("{child}", who)
+	line = line.replace("{child}", who)
 	return line.left(1).to_upper() + line.substr(1)
 
 
@@ -242,7 +244,8 @@ static func reaction(priority: int, approved: bool, parent: bool, rng: RandomNum
 	if parent:
 		return _pick(APPROVED_PARENT if approved else DENIED_PARENT, rng)
 	var tier := clampi(priority, 0, 2)
-	return _pick(APPROVED[tier] if approved else DENIED[tier], rng)
+	var pool: Array = APPROVED[tier] if approved else DENIED[tier]
+	return _pick(pool, rng)
 
 
 ## A reaction to the rule cited on a denial. Half the time it is specific to that rule, when

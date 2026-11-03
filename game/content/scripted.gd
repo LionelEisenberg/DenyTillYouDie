@@ -22,7 +22,7 @@ const CASES: Array[Dictionary] = [
 	{
 		"id": "eleanor", "day": 4, "slot": 3, "name": "Eleanor Hargrove", "age": 79,
 		"dx": "hip_fx", "rule": "R-04", "provider": "Lakeside Orthopedics",
-		"sticky_note": "Handle this one personally.\n—R.H.", "exempt": true,
+		"sticky_note": "Handle this one personally.\n-R.H.", "exempt": true,
 		"line": "My son works upstairs. He said you'd take good care of me.",
 	},
 	{

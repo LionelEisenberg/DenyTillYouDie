@@ -21,6 +21,8 @@ func _run() -> void:
 		filter = user_args[0]
 
 	var ctx := TestContext.new()
+	var catcher := ErrorCatcher.new()
+	OS.add_logger(catcher)
 	var ran := 0
 	for file_name in _test_files():
 		var script: GDScript = load(TEST_DIR + file_name)
@@ -43,9 +45,12 @@ func _run() -> void:
 				await instance.call("before_each")
 			ctx.current = label
 			var before := ctx.failures.size()
+			catcher.take()
 			await instance.call(method_name)
 			if instance.has_method("after_each"):
 				await instance.call("after_each")
+			for err in catcher.take():
+				ctx.failures.append("%s: engine error: %s" % [label, err])
 			ran += 1
 			print(("  ok    " if ctx.failures.size() == before else "  FAIL  ") + label)
 			if instance is Node and is_instance_valid(instance):
