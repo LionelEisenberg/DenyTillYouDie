@@ -11,7 +11,7 @@ var main: Control
 func before_each() -> void:
 	tree = Engine.get_main_loop() as SceneTree
 	gs = tree.root.get_node("GameState")
-	gs.save_path_override = "user://test_save.json"
+	gs.save_path_override = TestContext.save_path()
 	gs.delete_save()
 	main = (load("res://screens/main.tscn") as PackedScene).instantiate()
 	main.set("fast", true)

@@ -11,7 +11,7 @@ var tree: SceneTree
 func before_each() -> void:
 	tree = Engine.get_main_loop() as SceneTree
 	gs = tree.root.get_node("GameState")
-	gs.save_path_override = "user://test_save.json"
+	gs.save_path_override = TestContext.save_path()
 	gs.new_run("Pat Doe", 77)
 	desk = DeskScreen.new()
 	desk.fast = true

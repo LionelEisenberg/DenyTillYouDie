@@ -7,6 +7,11 @@ var failures: PackedStringArray = []
 var checks: int = 0
 
 
+## A save path no other test process uses (suites may run in parallel worktrees).
+static func save_path() -> String:
+	return "user://test_save_%d.json" % OS.get_process_id()
+
+
 func ok(condition: bool, msg: String = "") -> void:
 	checks += 1
 	if not condition:

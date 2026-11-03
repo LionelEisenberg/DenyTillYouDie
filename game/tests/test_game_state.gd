@@ -6,7 +6,7 @@ var gs: Node
 
 func before_each() -> void:
 	gs = (Engine.get_main_loop() as SceneTree).root.get_node("GameState")
-	gs.save_path_override = "user://test_save.json"
+	gs.save_path_override = TestContext.save_path()
 	gs.delete_save()
 
 
@@ -95,4 +95,4 @@ func test_saving_twice_replaces_the_file() -> void:
 	gs.run = null
 	t.ok(gs.load_game())
 	t.eq(gs.run.savings, 777, "second save replaced the first")
-	t.ok(not FileAccess.file_exists("user://test_save.json.tmp"), "no temp file left behind")
+	t.ok(not FileAccess.file_exists(TestContext.save_path() + ".tmp"), "no temp file left behind")

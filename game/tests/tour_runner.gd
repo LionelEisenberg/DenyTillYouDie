@@ -18,7 +18,7 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	root.theme = UiTheme.build()
 	gs = root.get_node("GameState")
-	gs.save_path_override = "user://tour_save.json"
+	gs.save_path_override = "user://tour_save_%d.json" % OS.get_process_id()
 
 	await _show(TitleScreen.new(), "01_title")
 	await _show(AgreementScreen.new(), "02_agreement")
