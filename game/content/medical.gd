@@ -6,7 +6,8 @@ class_name Medical
 ## are what the generator adds when it plants an R-04 or R-06 violation.
 ## `history_label` is what shows up in the medical history when a chronic
 ## condition predates enrollment (R-05): the same condition, sometimes under
-## another name ("Heart disease" for atrial fibrillation).
+## another name ("Atrial flutter" for atrial fibrillation), but always sharing a
+## word stem with the claim's label, so the match can be read off the paper.
 ## `fatal` is false for the few conditions nobody dies of untreated, so a
 ## denied patient with one of them never turns up in the obituaries.
 
@@ -150,7 +151,7 @@ const DIAGNOSES: Array[Dictionary] = [
 		"child_ok": false, "adult_ok": true, "chronic": false, "fatal": true, "history_label": ""},
 	{"id": "afib", "label": "Atrial fibrillation", "condition": "heart", "priority": 1,
 		"procs": ["er_visit", "ecg", "observation"], "pa_addons": ["echo", "cardiac_cath"], "excluded_addons": ["home_nursing"],
-		"child_ok": false, "adult_ok": true, "chronic": true, "fatal": true, "history_label": "Heart disease"},
+		"child_ok": false, "adult_ok": true, "chronic": true, "fatal": true, "history_label": "Atrial flutter"},
 	# CRITICAL
 	{"id": "heart_attack", "label": "Heart attack", "condition": "heart", "priority": 2,
 		"procs": ["er_visit", "ecg", "cardiac_cath", "stent"], "pa_addons": ["icu_stay"], "excluded_addons": ["air_ambulance"],

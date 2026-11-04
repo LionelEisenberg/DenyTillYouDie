@@ -216,11 +216,29 @@ const FLAVOR: Array = [
 		"headline": "Funeral costs up 9 percent",
 		"body": "The average funeral in the city now costs $8,300, according to a trade association. Cremation remains the most popular option.",
 	},
-	{
-		"headline": "Benevolence Mutual tests automated claim review",
-		"body": "The insurer is piloting software that can decide a claim in under a second. A spokesperson said the system, DenyBot, will \"free adjusters to focus on what matters.\"",
-	},
 ]
+
+## Runs on day 6, the morning before DenyBot reaches the desk, in place of a FLAVOR item.
+const DENYBOT_PILOT := {
+	"headline": "Benevolence Mutual tests automated claim review",
+	"body": "The insurer is piloting software that can decide a claim in under a second. A spokesperson said the system, DenyBot, will \"free adjusters to focus on what matters.\"",
+}
+
+## Letters to the editor from patients processed the day before, by the rule
+## their denial cited ("" for a denial with no reason). {name} is the writer.
+## Plain facts in the patient's voice; nobody moralizes.
+const EDITOR_LETTERS: Dictionary = {
+	"R-01": "To the editor: Benevolence Mutual says my coverage lapsed. I was late on one payment. One. - {name}",
+	"R-02": "To the editor: I went to the hospital my doctor sent me to. Benevolence Mutual says it is out of network. Nobody at the hospital mentioned it. - {name}",
+	"R-03": "To the editor: My claim was denied because a form I never filled out has a typo on it. I have called the hospital three times. - {name}",
+	"R-04": "To the editor: My claim was denied for lack of prior authorization. Nobody told me there was anything to authorize. - {name}",
+	"R-05": "To the editor: Benevolence Mutual found my condition in records from before I enrolled. They call it pre-existing. It is why I enrolled. - {name}",
+	"R-06": "To the editor: My doctor ordered the treatment. Benevolence Mutual says it is on their list of exclusions. I asked to see the list. - {name}",
+	"R-07": "To the editor: My denial letter gives the reason as proprietary. I called to ask what that means. They could not say. - {name}",
+	"": "To the editor: Benevolence Mutual denied my claim. The letter does not give a reason. I have asked for one twice. - {name}",
+}
+## From a patient whose claim was approved.
+const EDITOR_THANKS := "To the editor: I want to thank the person at Desk 11. I never got a name. - {name}"
 
 ## Obituaries for patients who died after a denial. Placeholders: {name} full name, {age},
 ## {weekday} like "Tuesday", {condition} the diagnosis in lowercase like "fracture, left wrist".

@@ -50,7 +50,7 @@ func _rect(c: Control) -> Rect2:
 func test_rulebook_width_is_the_same_on_every_page_on_day_7() -> void:
 	await _open_desk(7)
 	var book := desk._rulebook
-	t.eq(book._pages.size(), 5, "day 7 has five tabs")
+	t.eq(book._pages.size(), 6, "day 7 has six tabs (MEMO included)")
 	for page: String in book._pages:
 		book.show_page(page)
 		await _settle()

@@ -22,6 +22,8 @@ config/icon="res://icon.svg"
 
 GameState="*res://autoload/game_state.gd"
 Sfx="*res://autoload/sfx.gd"
+Ambience="*res://autoload/ambience.gd"
+Settings="*res://autoload/settings.gd"
 
 [display]
 

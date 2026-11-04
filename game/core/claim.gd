@@ -48,10 +48,20 @@ var bill_lines: Array[Dictionary] = []
 var history: Array[Dictionary] = []
 
 # Booth
+## What the patient opens with. The generator deals one to every random patient;
+## a scripted case brings its own.
 var arrival_line: String = ""
+## Dealt reactions for after the stamp. Empty for scripted cases and the player,
+## whose Scripted.reaction lines win.
+var reaction_approved: String = ""
+var reaction_denied: String = ""
 var parent_speaks: bool = false
 var sticky_note: String = ""
 var exempt_from_citation: bool = false
+## The one personal paper a scripted patient brings (see Scripted.CASES):
+## {kind, title, subtitle, rows: [[caption, value], ...], body, signature}.
+## Empty for everyone else. Never evidence for any rule.
+var exhibit: Dictionary = {}
 
 
 static func make_line(proc_id: String) -> Dictionary:

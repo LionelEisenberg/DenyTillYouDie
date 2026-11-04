@@ -4,8 +4,11 @@ class_name Lines
 ## Any line can sit next to any card, so none says how long someone has been a
 ## member, when they joined, or how long a condition has been around: MEMBER SINCE
 ## and the medical history would contradict it.
+##
+## ClaimGenerator deals these from per-run shuffled decks (one per pool), so a
+## line comes round again only once its whole deck has been used that week.
 
-## Indexed by priority: 0 ROUTINE, 1 URGENT, 2 CRITICAL. At least 8 lines per priority.
+## Indexed by priority: 0 ROUTINE, 1 URGENT, 2 CRITICAL. At least 16 lines per priority.
 ## No line names an injury or a treatment: any of them can sit next to any diagnosis.
 const ARRIVAL: Array = [
 	[ # ROUTINE
@@ -22,7 +25,17 @@ const ARRIVAL: Array = [
 		"Work picked this plan for us. I'm still figuring out how it works.",
 		"I only went in because my doctor insisted.",
 		"Hi. I think I filled everything out right this time.",
-		"Forty-one? That's me. Sorry. I've been here since eight.",
+		"That's my number? Sorry. I've been here since eight.",
+		"The copay already went on my credit card. I'm hoping this covers the rest.",
+		"I had to take two buses to get here.",
+		"The receptionist said you'd sort it out.",
+		"I filled this out in the waiting room. I hope you can read it.",
+		"I'm not here to argue. I just want it processed.",
+		"They sent me a bill, then a letter saying not to pay the bill yet.",
+		"I don't usually go to the doctor. This time I didn't have a choice.",
+		"Do I sign here, or did I already sign?",
+		"I'd like a copy of whatever you decide, please.",
+		"My doctor's office said someone would call. Nobody called.",
 	],
 	[ # URGENT
 		"The ER said to sort out the insurance afterward. So, this is afterward.",
@@ -38,6 +51,12 @@ const ARRIVAL: Array = [
 		"I've been in the waiting room since seven.",
 		"My manager says if I miss another week, don't bother coming back.",
 		"The ER bill and the doctor's note are both in there. I checked twice.",
+		"I'm still in a lot of pain, so I'll be quick.",
+		"The hospital wants to know by tomorrow. So do I.",
+		"Sorry. I came straight here. I haven't been home yet.",
+		"They're holding the date for me. I need to know if I can keep it.",
+		"I had to borrow money for the parking.",
+		"This is the second shift I've missed to be here.",
 	],
 	[ # CRITICAL
 		"They told me I shouldn't be out of bed. I came anyway.",
@@ -52,6 +71,10 @@ const ARRIVAL: Array = [
 		"My kids think I'm at work.",
 		"Everything's in there. Please don't make me come back.",
 		"The doctors are waiting on your answer. So am I.",
+		"My doctor wrote 'urgent' on every page.",
+		"They told me plainly I don't have a lot of time.",
+		"Please. I've done everything they asked.",
+		"They want an answer today. They said today.",
 	],
 ]
 
@@ -87,6 +110,120 @@ const ARRIVAL_PARENT: Array = [
 	],
 ]
 
+## Arrival lines for one diagnosis, used for some patients instead of the
+## priority deck. "adult" lines are the patient's own; "parent" lines speak for
+## a child, with {child} as in ARRIVAL_PARENT. They name symptoms and moments,
+## never a treatment the bill might not show, and never how long anything has
+## been going on.
+const DX_ARRIVAL: Dictionary = {
+	"migraine": {"adult": [
+		"Sorry. The light in here.",
+		"Could we keep this quiet? Every sound goes right through my head.",
+	]},
+	"back_strain": {"adult": [
+		"I'll stand, if that's all right. Sitting is worse.",
+		"I bent down to pick up a laundry basket. That's the whole story.",
+	]},
+	"wrist_fx": {
+		"adult": [
+			"It's my left hand, at least. I can still sign.",
+			"I fell on the steps at work. I heard it go.",
+		],
+		"parent": [
+			"{child} fell off the monkey bars. The school called me at work.",
+			"{child} didn't cry. I think that scared me more.",
+		],
+	},
+	"ankle_sprain": {
+		"adult": [
+			"I stepped off a curb wrong. That's all it took.",
+			"I can't drive like this. A neighbor brought me.",
+		],
+		"parent": [
+			"{child} came down wrong at practice and couldn't stand up.",
+			"I had to carry {child} up the stairs to get here.",
+		],
+	},
+	"strep": {
+		"adult": [
+			"Sorry, it hurts to talk. I'll keep this short.",
+			"I can barely swallow. Even water.",
+		],
+		"parent": [
+			"{child} couldn't swallow anything. Not even ice cream.",
+			"Half of {child}'s class is out with the same thing.",
+		],
+	},
+	"ear_infection": {"parent": [
+		"{child} was up all night holding one ear and crying.",
+		"{child} keeps pulling at that ear. The doctor took one look.",
+	]},
+	"asthma_flare": {
+		"adult": [
+			"Sorry. I'm still a little short of breath.",
+			"I couldn't get a full breath. I still can't, quite.",
+		],
+		"parent": [
+			"{child} couldn't catch a breath. I've never driven so fast.",
+			"{child}'s chest was whistling. The nurse heard it from the door.",
+		],
+	},
+	"croup": {"parent": [
+		"{child} sounded like a seal. The doctor said that's the word for it.",
+		"{child} woke up barking and fighting for air. I didn't know what to do.",
+	]},
+	"appendicitis": {
+		"adult": [
+			"I thought it was something I ate. It wasn't.",
+			"They said a few more hours and it would have burst.",
+		],
+		"parent": [
+			"{child} said it hurt low on the right side. I didn't listen at first.",
+			"{child} couldn't stand up straight. That's when I knew it was serious.",
+		],
+	},
+	"kidney_stone": {"adult": [
+		"I've never felt pain like that. I thought I was dying.",
+		"I couldn't sit still in the car. I couldn't sit still anywhere.",
+	]},
+	"concussion": {
+		"adult": [
+			"Sorry. Could you say that again? Things keep slipping.",
+			"I don't remember the fall. Just the floor, and then bright lights.",
+		],
+		"parent": [
+			"{child} took a ball to the head and didn't know where they were.",
+			"{child} keeps asking the same questions. The doctor says that's normal for now.",
+		],
+	},
+	"hip_fx": {"adult": [
+		"I fell in the bathroom. I lay there until a neighbor heard me.",
+		"They say I'll walk again. They say it like a question.",
+	]},
+	"heart_attack": {"adult": [
+		"It felt like someone was standing on my chest.",
+		"I thought it was heartburn. I almost didn't go in.",
+	]},
+	"stroke": {"adult": [
+		"Sorry. My words come out slow now.",
+		"My left hand still won't do what I tell it.",
+	]},
+	"breast_cancer": {"adult": [
+		"I found the lump myself. In the shower.",
+		"They caught it. Everyone keeps saying that. They caught it.",
+	]},
+	"sepsis": {
+		"adult": [
+			"They said it got into my blood. That's all I understood.",
+			"It started with a small cut. A small cut.",
+		],
+		"parent": [
+			"{child} had a small cut on one knee. That's how it started.",
+			"{child} had a fever and then wouldn't wake up properly.",
+		],
+	},
+}
+
 ## After the claim is stamped APPROVED. At least 5 per priority.
 const APPROVED: Array = [
 	[ # ROUTINE
@@ -118,7 +255,7 @@ const APPROVED: Array = [
 	],
 ]
 
-## After DENIED. At least 6 per priority. A critical one may be just "...".
+## After DENIED. At least 13 per priority. A critical one may be just "...".
 const DENIED: Array = [
 	[ # ROUTINE
 		"Okay. So what do I do now?",
@@ -130,6 +267,11 @@ const DENIED: Array = [
 		"So what am I paying you for?",
 		"I'll put it on the card with the others.",
 		"Okay. I'll skip the follow-up, then.",
+		"Fine. I'll call the number on the card again.",
+		"So I came down here for nothing.",
+		"I'll have to set up a payment plan, then.",
+		"Can I get that in writing?",
+		"Okay. I guess I'll wait until it gets worse.",
 	],
 	[ # URGENT
 		"They won't go ahead without this.",
@@ -140,6 +282,11 @@ const DENIED: Array = [
 		"I did everything they told me to.",
 		"My doctor said this would be covered.",
 		"I'll have to sell the car.",
+		"I'll have to cancel it, then.",
+		"I don't have that kind of money. Nobody does.",
+		"Then I'll go back to work like this.",
+		"So it's this or rent. That's the choice.",
+		"Please don't say that. Please.",
 	],
 	[ # CRITICAL
 		"...",
@@ -150,6 +297,11 @@ const DENIED: Array = [
 		"Can I stay here a minute? I just need a minute.",
 		"So that's it.",
 		"I'll tell the doctors to stop, then.",
+		"I'll tell my family.",
+		"Then there's nothing left to try.",
+		"I don't think I can come back here again.",
+		"I don't know how I'm going to tell them.",
+		"Is there anything I can do? Anything at all?",
 	],
 ]
 
@@ -231,25 +383,42 @@ const CODE_SPECIFIC: Dictionary = {
 ## The line a patient (or a child patient's parent) opens with at the window.
 ## An empty child_name falls back to "my kid".
 static func arrival(priority: int, parent: bool, child_name: String, rng: RandomNumberGenerator) -> String:
+	var line := _pick(arrival_pool(priority, parent), rng)
+	return fill_child(line, child_name) if parent else line
+
+
+## What the patient says once the stamp lands. Parent lines ignore priority.
+static func reaction(priority: int, approved: bool, parent: bool, rng: RandomNumberGenerator) -> String:
+	return _pick(reaction_pool(priority, approved, parent), rng)
+
+
+## The pool arrival lines come from for a priority and voice.
+static func arrival_pool(priority: int, parent: bool) -> Array:
 	var tier := clampi(priority, 0, 2)
-	var pool: Array = ARRIVAL_PARENT[tier] if parent else ARRIVAL[tier]
-	var line := _pick(pool, rng)
-	if not parent:
-		return line
+	return ARRIVAL_PARENT[tier] if parent else ARRIVAL[tier]
+
+
+## The pool reactions come from. Parent pools ignore priority.
+static func reaction_pool(priority: int, approved: bool, parent: bool) -> Array:
+	if parent:
+		return APPROVED_PARENT if approved else DENIED_PARENT
+	var tier := clampi(priority, 0, 2)
+	return APPROVED[tier] if approved else DENIED[tier]
+
+
+## DX_ARRIVAL lines for a diagnosis in one voice, or an empty array.
+static func dx_pool(diagnosis_id: String, parent: bool) -> Array:
+	var voices: Dictionary = DX_ARRIVAL.get(diagnosis_id, {})
+	return voices.get("parent" if parent else "adult", [])
+
+
+## Puts the child's first name into a parent line; an empty name reads "my kid".
+static func fill_child(line: String, child_name: String) -> String:
 	var who := child_name.strip_edges()
 	if who.is_empty():
 		who = "my kid"
 	line = line.replace("{child}", who)
 	return line.left(1).to_upper() + line.substr(1)
-
-
-## What the patient says once the stamp lands. Parent lines ignore priority.
-static func reaction(priority: int, approved: bool, parent: bool, rng: RandomNumberGenerator) -> String:
-	if parent:
-		return _pick(APPROVED_PARENT if approved else DENIED_PARENT, rng)
-	var tier := clampi(priority, 0, 2)
-	var pool: Array = APPROVED[tier] if approved else DENIED[tier]
-	return _pick(pool, rng)
 
 
 ## A reaction to the rule cited on a denial. Half the time it is specific to that rule, when

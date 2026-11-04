@@ -13,6 +13,11 @@ const CITATION_FINE := 5
 const LEGAL_FEE := 15
 const BOSS_PENALTY := 30
 
+# Claims Integrity's daily denial target, in whole percent, by day (1-7). Meeting
+# it pays TARGET_BONUS on that night's ledger; day 1 has no target and day 7 no night.
+const DAILY_TARGET: Array[int] = [0, 55, 60, 60, 65, 65, 67]
+const TARGET_BONUS := 10
+
 # Public discontent, in percentage points
 const START_DISCONTENT := 10.0
 const DISCONTENT_DENY: Array[float] = [1.5, 3.0, 5.0]
@@ -35,6 +40,21 @@ const RENT := 25
 const FOOD := 15
 const HEAT := 10
 const MEDICINE := 20
+## Mom's heart pills and Riley's controller inhaler, each per night.
+const PRESCRIPTION := 10
+## What Sam's pharmacy coupon takes off each pharmacy bill (medicine for the
+## sick and both prescriptions) on the night it turns up.
+const COUPON_OFF := 5
+## The household events' bills, by Household.EVENTS id. The coupon is a discount.
+const HOUSEHOLD_EVENT_COST: Dictionary = {
+	"furnace": 30,
+	"dentist": 35,
+	"class_trip": 8,
+	"collection": 15,
+	"coupon": 0,
+	"glasses": 6,
+	"bus_pass": 10,
+}
 
 # Endings
 const PROMOTION_RATE := 0.67
@@ -65,3 +85,10 @@ static func approval_relief(c: Claim, compassion_day: bool) -> float:
 	if compassion_day:
 		amount *= COMPASSION_RELIEF_MULT
 	return amount
+
+
+## The denial target for `day` in whole percent (0 when there is none).
+static func target_for(day: int) -> int:
+	if day < 1 or day > DAILY_TARGET.size():
+		return 0
+	return DAILY_TARGET[day - 1]

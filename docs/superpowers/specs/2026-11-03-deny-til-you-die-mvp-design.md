@@ -239,3 +239,15 @@ What changed from the starting values above, and why.
 - **The boss's sticky note** is its own small paper on the desk, not stuck to the claim form.
 - **Desk buttons take no keyboard focus**, so Space (inspect) can never press a stamp.
 - **Portrait enum is `PortraitView.Mood`**: Godot already has a class named `Expression`.
+
+### Improvement pass (2026-11-03)
+
+After the MVP and two review rounds, five workstreams built a 46-item roadmap in parallel, each with its own independent review and fix pass, then merged with no conflicts:
+
+- **Desk:** a coached day-1 training (skippable); a waiting room behind the patient with a serving board, chairs and silhouettes that empty as the day goes; patients who walk in and out, blink and sweat; stamps as physical objects that fly, hit with a 50 ms hitstop and print ink-starved impressions; typed speech with voice blips; price lines on each stamp; pay and discontent pops that fly into the HUD; Enter and N for NEXT!; protest, audit and Compassion Day dressing in the booth; a shutter that opens and closes the shift; and a staged day-7 climax (lights flicker, papers land one at a time, the stamp hovers, hard cut to black).
+- **Paperwork:** day 1 opens with a lapsed-card training claim then a clean one; the manual gets a MEMO tab, a NEW marker on today's rule, tab-key paging and a pulse on the new tab; papers have cursors, a pick-up, a drop and a miss shake; the meter explains itself; names and lines are dealt from weekly decks so they don't repeat; scripted cases bring an exhibit (Walt's ICU nursing log, Lily's oncologist's letter, Dale's staff badge, Priya's obstetric ultrasound, Marcus's oncologist's letter); a calendar, the family photo (with a ribbon for anyone who died) and coffee rings lie on the desk.
+- **Story and household:** decision records feed carbon copies on the ledger; prescriptions (Mom's heart pills, Riley's inhaler, both not covered) and one household event a night on nights 2, 4, 5 and 6; a line from home each night; a daily denial target with a $10 bonus; memos that rank the desks and set up the endings; letters to the editor; the ledger prints line by line like an adding machine.
+- **Sound and settings:** 36 synthesized effects in several takes, room tone per screen, an 8 kHz hold-music loop, the Esc break menu, M to mute, a staff badge on the agreement and desk, pixel cursors, and a clack on every button.
+- **Flow and endings:** a day card with the week's time card each morning; the day-7 hard cut; quit to title; RETRY DAY n after an ending with a count of outcomes on file; a FOLLOW-UPS page; ending documents; halftone newspaper photos; sheets that slide or drop in under a lamp pool; and two favor endings (TAKEN CARE OF, COVERED), for seven in all.
+
+Balance after the merge (200 runs each): cite-or-approve reaches day 7 in 99% of runs; the kind player survives 87% and loses 0.24 family members a run; guessing citations is evicted 82%; approving everything is evicted around day 3; denying everything blind is scapegoated on the night of day 5.

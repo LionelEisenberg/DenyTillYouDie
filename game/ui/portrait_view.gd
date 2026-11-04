@@ -4,6 +4,13 @@ extends Control
 ## Faces are deterministic per seed; age and sickness change the look, and set_expression()
 ## changes only the brows, eyes and mouth. (The enum is Mood because Godot already has a
 ## native class called Expression.)
+##
+## The defaults draw an 8 px portrait in front of its own wall, holding still. The desk
+## uses 10 px blocks, no wall (it draws a waiting room behind), idle motion (blinks,
+## glances, sweat), a parent beside a child, and walks the figure with fig_offset.
+
+## The figure appeared, changed, moved or left (see coverage()).
+signal figure_changed
 
 enum Mood { NEUTRAL, WORRIED, RELIEVED, DEVASTATED, ANGRY }
 enum Hair { BALD, BUZZ, SHORT, PARTED, LONG, BOB, BUN, CURLY, RECEDING }
@@ -35,6 +42,50 @@ const TEAR := Color(0.72, 0.84, 0.9, 0.85)
 const SWEAT := Color(0.84, 0.9, 0.9, 0.9)
 const LENS := Color(0.86, 0.93, 0.95, 0.16)
 const NO_EDGE := Color(0, 0, 0, 0)
+## The figure's shadow when there's no wall of its own to darken.
+const SOFT_SHADOW := Color(0, 0, 0, 0.22)
+const BLINK_TIME := 0.12
+const GLANCE_TIME := 0.7
+## The first grid column of a child's parent's coat, at the window's right edge.
+const PARENT_EDGE := GRID_W - 3
+
+## Pixels per grid block. Setting it resizes the portrait.
+var block: int = BLOCK:
+	set(value):
+		block = maxi(1, value)
+		custom_minimum_size = Vector2(GRID_W * block, GRID_H * block)
+		size = custom_minimum_size
+		queue_redraw()
+## Paint the booth wall behind the figure. Without it the figure casts a soft,
+## translucent shadow on whatever is drawn behind the portrait.
+var draw_wall: bool = true:
+	set(value):
+		draw_wall = value
+		queue_redraw()
+## Where the figure stands, in blocks. Only the figure moves (never the wall), so a
+## patient walking in or out steps along the pixel grid and is cropped at the edge.
+var fig_offset := Vector2i.ZERO:
+	set(value):
+		if value == fig_offset:
+			return
+		fig_offset = value
+		queue_redraw()
+		figure_changed.emit()
+## Blinks, glances toward the desk and, on sick patients, a bead of sweat that slides.
+## Off by default, so photos and badges hold still.
+var idle_motion: bool = false:
+	set(value):
+		idle_motion = value
+		_arm_idle()
+## A child's parent standing beside them: a sleeve and a hand on the shoulder at the
+## right edge, head out of frame.
+var with_parent: bool = false:
+	set(value):
+		if value == with_parent:
+			return
+		with_parent = value
+		queue_redraw()
+		figure_changed.emit()
 
 var _shown := false
 var _mood: Mood = Mood.NEUTRAL
@@ -57,6 +108,8 @@ var _glasses := false
 var _beard: Beard = Beard.NONE
 var _cloth := Color.GRAY
 var _neckline: Neckline = Neckline.CREW
+var _parent_skin := Color.WHITE
+var _parent_cloth := Color.GRAY
 # Layout in grid rows and columns, set by _layout().
 var _top := 9 ## First head row.
 var _hh := 22 ## Head height.
@@ -69,6 +122,15 @@ var _nw := 4 ## Neck half-width.
 var _sh := 34 ## Shoulder top row.
 var _sw := 16 ## Shoulder half-width.
 var _rows := PackedInt32Array() ## Head half-width per head row.
+# Idle motion, driven by timers seeded from the face.
+var _blinking := false
+var _glance := 0 ## Blocks the pupils sit toward the desk (screen right).
+var _sweat_drop := 0 ## Blocks the temple bead has slid down.
+var _idle_rng := RandomNumberGenerator.new()
+var _blink_timer: Timer
+var _glance_timer: Timer
+## What _b() shifts by: fig_offset while the figure is drawn, zero for the wall.
+var _off := Vector2i.ZERO
 
 
 func _init() -> void:
@@ -100,9 +162,15 @@ func show_patient(seed_value: int, age: int, sick: bool) -> void:
 	_neckline = rng.randi_range(Neckline.CREW, Neckline.TURTLE) as Neckline
 	var gray_roll := rng.randf()
 	var bald_roll := rng.randf()
+	# Rolled after everything above, so adding it reshuffled no existing face.
+	var parent_cloth_i := rng.randi_range(0, Palette.CLOTHES.size() - 1)
 	_age = clampi(age, 1, 99)
 	_sick = sick
 	_skin = Palette.SKIN_TONES[skin_i]
+	_parent_skin = _skin
+	_parent_cloth = Palette.CLOTHES[parent_cloth_i]
+	if _parent_cloth == _cloth: # Never the child's own sweater.
+		_parent_cloth = Palette.CLOTHES[(parent_cloth_i + 3) % Palette.CLOTHES.size()]
 	if sick: # Sallow, greenish and washed out.
 		_skin = _skin.lerp(Color.from_hsv(0.25, 0.2, minf(_skin.v * 0.85 + 0.14, 0.82)), 0.65)
 	_hair_col = Palette.HAIR_COLORS[hair_i % 3 if skin_i >= 3 else hair_i]
@@ -129,8 +197,11 @@ func show_patient(seed_value: int, age: int, sick: bool) -> void:
 	_beard = beard if has_beard and _age >= 18 and _hair not in [Hair.BUN, Hair.BOB] else Beard.NONE
 	_mood = Mood.NEUTRAL
 	_shown = true
+	_idle_rng.seed = hash([seed_value, "idle"])
 	_layout()
+	_arm_idle()
 	queue_redraw()
+	figure_changed.emit()
 
 
 ## Same face, new expression.
@@ -141,8 +212,43 @@ func set_expression(e: Mood) -> void:
 
 ## Empty booth: only the wall is drawn.
 func clear() -> void:
+	var was_shown := _shown
 	_shown = false
+	_arm_idle()
 	queue_redraw()
+	if was_shown:
+		figure_changed.emit()
+
+
+## Whether a patient is at the window.
+func is_shown() -> bool:
+	return _shown
+
+
+## The grid blocks the figure covers where it stands now, its outline and a
+## parent's coat included: one byte per block, row by row (GRID_W x GRID_H), 1 where
+## covered. All zero with nobody at the window. (The soft shadow doesn't count.)
+func coverage() -> PackedByteArray:
+	var cover := _mask()
+	if not _shown:
+		return cover
+	var figure := _mask()
+	for m in _figure_masks():
+		for i in m.size():
+			if m[i] != 0:
+				figure[i] = 1
+	var steps: Array[Vector2i] = [Vector2i.ZERO, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
+	for y in GRID_H:
+		for x in GRID_W:
+			if figure[y * GRID_W + x] == 0:
+				continue
+			for step in steps:
+				_span(cover, y + step.y + fig_offset.y, x + step.x + fig_offset.x, x + step.x + fig_offset.x + 1)
+	if with_parent and _age < 16:
+		var strip := PARENT_EDGE + _parent_shift()
+		for y in GRID_H:
+			_span(cover, y, strip - 1, GRID_W)
+	return cover
 
 
 func _layout() -> void:
@@ -174,22 +280,30 @@ func _layout() -> void:
 
 
 func _draw() -> void:
-	_b(0, 0, GRID_W, GRID_H, Palette.WALL)
-	_b(0, 5, GRID_W, 9, Palette.WALL_LIGHT)
-	_b(0, 14, GRID_W, 1, Palette.WALL.darkened(0.12))
+	_off = Vector2i.ZERO
+	if draw_wall:
+		_b(0, 0, GRID_W, GRID_H, Palette.WALL)
+		_b(0, 5, GRID_W, 9, Palette.WALL_LIGHT)
+		_b(0, 14, GRID_W, 1, Palette.WALL.darkened(0.12))
 	if not _shown:
 		return
-	var head := _sym_mask(_top, _chin, func(y: int) -> int: return _rows[y - _top] + int(y >= _ey - 1 and y < _nb))
-	var body := _sym_mask(_sh, GRID_H, func(y: int) -> int: return _sw - maxi(0, 6 - 2 * (y - _sh)))
-	var back := _back_hair_mask()
-	var cap := _cap_mask()
-	if _hair == Hair.CURLY:
-		_scallop(back)
-		_scallop(cap)
-	for m: PackedByteArray in [back, body, head, cap]: # Shadow on the wall.
-		_runs(m, Palette.WALL.darkened(0.2), Vector2i(2, 1))
+	_off = fig_offset
+	var masks := _figure_masks()
+	var back := masks[0]
+	var body := masks[1]
+	var head := masks[2]
+	var cap := masks[3]
+	# One shadow for the whole figure, so a translucent one never doubles up.
+	var shadow := _mask()
+	for m in masks:
+		for i in m.size():
+			if m[i] != 0:
+				shadow[i] = 1
+	_runs(shadow, Palette.WALL.darkened(0.2) if draw_wall else SOFT_SHADOW, Vector2i(2, 1))
 	_paint(back, _hair_col, _hair_col.darkened(0.55))
 	_draw_body(body)
+	if with_parent and _age < 16:
+		_draw_parent_arm()
 	_draw_head(head)
 	_draw_eyes()
 	_draw_brows()
@@ -197,11 +311,25 @@ func _draw() -> void:
 	_draw_wrinkles()
 	_draw_beard()
 	_draw_mouth()
-	if _sick: # Beads of sweat on the brow, temple and cheek.
-		for p: Vector2i in [Vector2i(3, _ey - 5), Vector2i(2 - _hw, _ey - 2), Vector2i(_hw - 3, _my - 3)]:
+	if _sick: # Beads of sweat on the brow, temple and cheek; the temple bead slips now and then.
+		var beads: Array[Vector2i] = [Vector2i(3, _ey - 5), Vector2i(2 - _hw, _ey - 2 + _sweat_drop), Vector2i(_hw - 3, _my - 3)]
+		for p in beads:
 			_b(CX + p.x, p.y, 1, 1, Color.WHITE.lerp(SWEAT, 0.5))
 			_b(CX + p.x, p.y + 1, 1, 2, SWEAT.darkened(0.15))
 	_draw_hair(cap)
+	_off = Vector2i.ZERO
+
+
+## The figure's shapes at rest: hair behind the head, body, head, and hair over it.
+func _figure_masks() -> Array[PackedByteArray]:
+	var head := _sym_mask(_top, _chin, func(y: int) -> int: return _rows[y - _top] + int(y >= _ey - 1 and y < _nb))
+	var body := _sym_mask(_sh, GRID_H, func(y: int) -> int: return _sw - maxi(0, 6 - 2 * (y - _sh)))
+	var back := _back_hair_mask()
+	var cap := _cap_mask()
+	if _hair == Hair.CURLY:
+		_scallop(back)
+		_scallop(cap)
+	return [back, body, head, cap]
 
 
 ## Hair hanging behind the head.
@@ -295,6 +423,48 @@ func _draw_body(body: PackedByteArray) -> void:
 			_b(CX - 1, _sh + 1, 2, _nw, _cloth.darkened(0.3))
 
 
+## The parent beside a child: a strip of coat at the window's right edge (their
+## head is out of frame) and, once the child stands at the counter, a sleeve
+## reaching down to a hand on the child's shoulder. The strip stays put while the
+## child walks in, as if the parent had stepped up first, and leaves with them.
+func _draw_parent_arm() -> void:
+	var coat := _parent_cloth
+	var edge := PARENT_EDGE
+	if fig_offset.x == 0:
+		# The forearm, two blocks thick, stepping down and in toward the shoulder.
+		var arm := _mask()
+		var hand_x := CX + _sw - 5
+		var reach := maxi(1, edge - 1 - hand_x)
+		for i in reach:
+			var y := _sh - 2 - reach + i
+			_span(arm, y, edge - 2 - i, mini(edge, edge + 1 - i))
+			_span(arm, y + 1, edge - 2 - i, mini(edge, edge + 1 - i))
+		_paint(arm, coat, coat.darkened(0.55))
+		_b(hand_x + 1, _sh - 2, 3, 1, coat.darkened(0.3)) # Cuff.
+		var hand := _mask()
+		_span(hand, _sh - 1, hand_x - 1, hand_x + 3)
+		_span(hand, _sh, hand_x - 2, hand_x + 3)
+		_span(hand, _sh + 1, hand_x - 2, hand_x + 1)
+		_paint(hand, _parent_skin, _parent_skin.darkened(0.55))
+		_b(hand_x - 1, _sh + 1, 1, 1, _parent_skin.darkened(0.22)) # Between the fingers.
+		_b(hand_x + 1, _sh, 1, 1, _parent_skin.darkened(0.14))
+	var walking := _off
+	_off = Vector2i(_parent_shift(), 0)
+	var side := _mask()
+	for y in GRID_H:
+		_span(side, y, edge, GRID_W)
+	_paint(side, coat, coat.darkened(0.55))
+	_b(GRID_W - 1, 0, 1, GRID_H, coat.darkened(0.25)) # The coat turns away from the light.
+	_b(edge, 0, 1, GRID_H, coat.darkened(0.12)) # Fold where the arm hangs.
+	_off = walking
+
+
+## How far the parent's coat strip has moved: not at all on the way in, block for
+## block with the child on the way out.
+func _parent_shift() -> int:
+	return maxi(fig_offset.x, 0)
+
+
 func _draw_head(head: PackedByteArray) -> void:
 	var shade := _skin.darkened(0.12)
 	_paint(head, _skin, _skin.darkened(0.55))
@@ -312,8 +482,13 @@ func _draw_eyes() -> void:
 	var g := _eye_gap
 	var lid := _skin.darkened(0.34)
 	var white := SCLERA.lerp(_skin, 0.25) if _skin.v < 0.5 else SCLERA
-	_bm(g, _ey, 3, 1, _skin.darkened(0.25) if _eye_style == 1 else white)
-	_bm(g + 1, _ey, 1, 1, _eye_col)
+	if _blinking: # Lids closed: a dark line where the eyes were.
+		_bm(g, _ey, 3, 1, _skin.darkened(0.3))
+	else:
+		_bm(g, _ey, 3, 1, _skin.darkened(0.25) if _eye_style == 1 else white)
+		# Pupils, nudged one block toward the desk during a glance.
+		_b(CX + g + 1 + _glance, _ey, 1, 1, _eye_col)
+		_b(CX - g - 2 + _glance, _ey, 1, 1, _eye_col)
 	if _eye_style == 2 or _age >= 55 or _sick: # Heavy lids.
 		_bm(g, _ey - 1, 3, 1, _skin.darkened(0.3 if _sick else 0.16))
 	if _sick: # Dark, sunken circles.
@@ -428,13 +603,65 @@ func _draw_hair(cap: PackedByteArray) -> void:
 			_b(x, _top_of(cap, x) - 2, 1, 1, col.darkened(0.5))
 
 
+# --- Idle motion ---------------------------------------------------------------
+
+## Starts or stops the blink and glance timers to match idle_motion and whether a
+## patient is shown. The timers are internal children, made on first use.
+func _arm_idle() -> void:
+	var on := idle_motion and _shown
+	if on and _blink_timer == null:
+		_blink_timer = Timer.new()
+		_blink_timer.one_shot = true
+		_blink_timer.timeout.connect(_on_blink_timer)
+		add_child(_blink_timer, false, Node.INTERNAL_MODE_FRONT)
+		_glance_timer = Timer.new()
+		_glance_timer.one_shot = true
+		_glance_timer.timeout.connect(_on_glance_timer)
+		add_child(_glance_timer, false, Node.INTERNAL_MODE_FRONT)
+	_blinking = false
+	_glance = 0
+	_sweat_drop = 0
+	if _blink_timer == null:
+		return
+	if on:
+		_blink_timer.start(_idle_rng.randf_range(2.5, 5.5))
+		_glance_timer.start(_idle_rng.randf_range(3.0, 7.0))
+	else:
+		_blink_timer.stop()
+		_glance_timer.stop()
+
+
+## The lids close for BLINK_TIME, then stay open for 2.5 to 5.5 seconds.
+func _on_blink_timer() -> void:
+	_blinking = not _blinking
+	_blink_timer.start(BLINK_TIME if _blinking else _idle_rng.randf_range(2.5, 5.5))
+	queue_redraw()
+
+
+## Now and then the eyes slide one block toward the desk and back. A sick patient's
+## temple bead slips down a block instead, about a third of the time.
+func _on_glance_timer() -> void:
+	if _glance != 0 or _sweat_drop != 0:
+		_glance = 0
+		_sweat_drop = 0
+		_glance_timer.start(_idle_rng.randf_range(3.0, 7.0))
+	elif _sick and _idle_rng.randf() < 0.35:
+		_sweat_drop = 1
+		_glance_timer.start(_idle_rng.randf_range(1.5, 3.0))
+	else:
+		_glance = 1
+		_glance_timer.start(GLANCE_TIME)
+	queue_redraw()
+
+
 # --- Block-grid helpers -------------------------------------------------------
 
-## One rect of blocks, clipped to the grid.
+## One rect of blocks, clipped to the grid. While the figure is drawn the rect is
+## shifted by fig_offset first, so a patient walking in is cropped at the edge.
 func _b(x: int, y: int, w: int, h: int, c: Color) -> void:
-	var r := Rect2i(x, y, maxi(w, 0), maxi(h, 0)).intersection(Rect2i(0, 0, GRID_W, GRID_H))
+	var r := Rect2i(x + _off.x, y + _off.y, maxi(w, 0), maxi(h, 0)).intersection(Rect2i(0, 0, GRID_W, GRID_H))
 	if r.has_area():
-		draw_rect(Rect2(Vector2(r.position * BLOCK), Vector2(r.size * BLOCK)), c)
+		draw_rect(Rect2(Vector2(r.position * block), Vector2(r.size * block)), c)
 
 
 ## A run of blocks dx right of the axis, plus its mirror image on the left.

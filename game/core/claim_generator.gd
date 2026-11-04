@@ -6,6 +6,12 @@ extends RefCounted
 ## clean claims carry decoys (cards that expire soon, prior-auth procedures with an
 ## auth number, conditions diagnosed after enrollment) so the player has to read.
 ## The provider follows from what was billed: a family clinic never bills surgery.
+##
+## Day 1 opens with two training claims: a plain lapse (R-01 and nothing else)
+## and a clean claim. On days 2-6 the first patient breaks the day's new rule
+## whenever anyone that day does. Names come from one list per run and lines
+## from per-run decks, both dealt by the patient's place in the week, so nobody
+## repeats and any single day regenerates on its own.
 
 const PATIENTS_PER_DAY: Array[int] = [5, 6, 7, 7, 8, 8, 7]
 const VIOLATION_TARGET: Array[float] = [0.40, 0.50, 0.55, 0.60, 0.60, 0.65, 0.65]
@@ -41,9 +47,20 @@ const PRE_EXISTING_SPAN := 1400
 ## after that, and a claim after that.
 const PRE_EXISTING_MIN_AGE := 3
 const VOWELS := "aeiou"
+## Day 1's first patient: coverage ended this many days before the date of service.
+const TRAINING_GAP := Vector2i(10, 40)
+## Share of patients with a Lines.DX_ARRIVAL line who open with it instead of the deck.
+const DX_LINE_SHARE := 0.4
+## Names drawn per run: at least one for every patient in the week.
+const WEEK_NAMES := 49
 
 var run_seed: int
 var player_name: String
+var _names: PackedStringArray = []
+## Shuffled line decks by key ("arrival:adult:0", "denied:parent", "dx:croup:parent"...).
+var _decks: Dictionary = {}
+## Day -> what each of its patients draws lines by (see _profile).
+var _profiles: Dictionary = {}
 
 
 func _init(seed_value: int, player: String) -> void:
@@ -53,6 +70,51 @@ func _init(seed_value: int, player: String) -> void:
 
 ## Every patient for `day`, in arrival order. Day 7 ends with the player's own claim.
 func generate_day(day: int) -> Array[Claim]:
+	var claims := _generate_raw(day)
+	_deal_lines(day, claims)
+	_make_claim_numbers_unique(claims)
+	_example_first(claims, day)
+	return claims
+
+
+## A patient's place in the week, counting from 0 at day 1's first slot. Names
+## and lines are dealt by it.
+static func week_index(day: int, slot: int) -> int:
+	var index := slot
+	for d in range(1, day):
+		index += PATIENTS_PER_DAY[d - 1]
+	return index
+
+
+## The run's patient names, one per place in the week: distinct first names and
+## distinct full names, never a scripted patient's or the player's own.
+func week_names() -> PackedStringArray:
+	if not _names.is_empty():
+		return _names
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([run_seed, "names"])
+	var firsts := _shuffled(Array(Names.FIRST), rng)
+	var lasts := _shuffled(Array(Names.LAST), rng)
+	var taken := {player_name.strip_edges().to_lower(): true}
+	for case_data: Dictionary in Scripted.CASES:
+		taken[String(case_data["name"]).to_lower()] = true
+	var next_last := 0
+	for i in maxi(WEEK_NAMES, week_index(PATIENTS_PER_DAY.size() + 1, 0)):
+		var first: String = firsts[i % firsts.size()]
+		var full := ""
+		for attempt in lasts.size():
+			full = "%s %s" % [first, lasts[next_last % lasts.size()]]
+			next_last += 1
+			if not taken.has(full.to_lower()):
+				break
+		taken[full.to_lower()] = true
+		_names.append(full)
+	return _names
+
+
+## The day's claims in generation order, before lines are dealt or anyone is
+## moved up. The same seed always gives the same claims.
+func _generate_raw(day: int) -> Array[Claim]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([run_seed, day])
 	var scripted := Scripted.for_day(day)
@@ -60,15 +122,19 @@ func generate_day(day: int) -> Array[Claim]:
 	for i in PATIENTS_PER_DAY[day - 1]:
 		if not scripted.is_empty() and i == int(scripted["slot"]):
 			claims.append(make_scripted(scripted, day, rng))
+		elif day == 1 and i < 2:
+			claims.append(_training_claim(day, rng, _name_for(day, i), i == 0))
 		else:
-			claims.append(random_claim(day, rng))
+			claims.append(random_claim(day, rng, _name_for(day, i)))
 	if day == 7:
 		claims.append(make_player_claim(day))
-	_make_claim_numbers_unique(claims)
 	return claims
 
 
-func random_claim(day: int, rng: RandomNumberGenerator) -> Claim:
+## A random patient. `full_name` (generate_day passes the week's name for the
+## slot) replaces the name drawn from the pools; the draw still happens, so the
+## rest of the claim comes out the same either way.
+func random_claim(day: int, rng: RandomNumberGenerator, full_name: String = "") -> Claim:
 	var rule := ""
 	if rng.randf() < VIOLATION_TARGET[day - 1]:
 		rule = _pick_rule(day, rng)
@@ -77,7 +143,9 @@ func random_claim(day: int, rng: RandomNumberGenerator) -> Claim:
 	var child := want_child and bool(dx["child_ok"])
 	if not child and not dx["adult_ok"]:
 		child = true
-	var full_name := "%s %s" % [Names.FIRST[rng.randi_range(0, Names.FIRST.size() - 1)], Names.LAST[rng.randi_range(0, Names.LAST.size() - 1)]]
+	var drawn := "%s %s" % [Names.FIRST[rng.randi_range(0, Names.FIRST.size() - 1)], Names.LAST[rng.randi_range(0, Names.LAST.size() - 1)]]
+	if full_name == "":
+		full_name = drawn
 	var age := _pick_age(dx, child, rng)
 	if rule == Rules.R05:
 		age = maxi(age, PRE_EXISTING_MIN_AGE)
@@ -123,7 +191,49 @@ func make_scripted(case_data: Dictionary, day: int, rng: RandomNumberGenerator) 
 	else:
 		c.provider = _pick_provider(c, rng)
 	c.amount = c.bill_total()
+	c.exhibit = _exhibit(case_data.get("exhibit", {}), c)
 	return c
+
+
+## Day 1's first two patients, for learning the desk: an adult ROUTINE claim
+## whose only fault is coverage that ended TRAINING_GAP days before the date of
+## service (`lapsed`), or one with nothing wrong at all. Neither carries decoys.
+func _training_claim(day: int, rng: RandomNumberGenerator, full_name: String, lapsed: bool) -> Claim:
+	var pool: Array[Dictionary] = []
+	for candidate: Dictionary in Medical.DIAGNOSES:
+		if candidate["priority"] == Claim.Priority.ROUTINE and candidate["adult_ok"]:
+			pool.append(candidate)
+	var dx: Dictionary = pool[rng.randi_range(0, pool.size() - 1)]
+	var c := _build(day, dx, _pick_age(dx, false, rng), full_name, rng)
+	if lapsed:
+		c.coverage_through = c.date_of_service - rng.randi_range(TRAINING_GAP.x, TRAINING_GAP.y)
+		if c.member_since >= c.coverage_through - 30:
+			c.member_since = maxi(c.card_dob + 30, c.coverage_through - rng.randi_range(200, 900))
+	c.provider = _pick_provider(c, rng)
+	c.amount = c.bill_total()
+	return c
+
+
+## A scripted case's exhibit template made concrete: "{date}" becomes the date
+## of service, and each "log" entry a row dated that many days from it.
+static func _exhibit(template: Dictionary, c: Claim) -> Dictionary:
+	if template.is_empty():
+		return {}
+	var service := DateUtil.fmt(c.date_of_service)
+	var rows: Array = []
+	for pair: Array in template.get("rows", []):
+		rows.append([String(pair[0]), String(pair[1]).replace("{date}", service)])
+	for entry: Array in template.get("log", []):
+		rows.append([DateUtil.fmt(c.date_of_service + int(entry[0])), String(entry[1])])
+	return {
+		"kind": String(template.get("kind", "log")),
+		"title": String(template.get("title", "")),
+		"subtitle": String(template.get("subtitle", "")),
+		"rows": rows,
+		"body": String(template.get("body", "")),
+		"signature": String(template.get("signature", "")),
+		"image": String(template.get("image", "")),
+	}
 
 
 func make_player_claim(day: int) -> Claim:
@@ -451,3 +561,130 @@ static func _next_claim_no(claim_no: String) -> String:
 	if serial > 9999:
 		serial = 1000
 	return "%s%04d" % [claim_no.left(-4), serial]
+
+
+# --- the week's order, names and lines --------------------------------------
+
+## Days 2-6: the first patient shows the day's new rule broken, if anyone does.
+## Only the order changes: the first later random patient who breaks it trades
+## places with the first. The scripted case keeps its slot.
+func _example_first(claims: Array[Claim], day: int) -> void:
+	if day < 2 or day > 6 or claims.is_empty() or claims[0].scripted_id != "":
+		return
+	var rule: String = Rules.new_rule_on(day).get("id", "")
+	if rule == "" or _breaks(claims[0], rule, day):
+		return
+	for i in range(1, claims.size()):
+		var c := claims[i]
+		if c.scripted_id == "" and not c.is_player and _breaks(c, rule, day):
+			claims[i] = claims[0]
+			claims[0] = c
+			return
+
+
+static func _breaks(c: Claim, rule_id: String, day: int) -> bool:
+	for v in RuleChecker.violations(c, day):
+		if v["rule"] == rule_id:
+			return true
+	return false
+
+
+func _name_for(day: int, slot: int) -> String:
+	return week_names()[week_index(day, slot)]
+
+
+## Gives every random patient of `day` an arrival line and both reactions, dealt
+## in week order from per-run shuffled decks, so no line comes round again until
+## its deck has been dealt through. Earlier days only need to say what they drew
+## (their profiles, generated once): a day dealt alone matches the same day in a
+## full week.
+func _deal_lines(day: int, claims: Array[Claim]) -> void:
+	var today := _profile(day, claims)
+	_profiles[day] = today
+	var dealt := {}
+	for d in range(1, day):
+		for patient: Dictionary in _day_profile(d):
+			_deal_patient(patient, dealt)
+	for slot in claims.size():
+		var lines := _deal_patient(today[slot], dealt)
+		if lines.is_empty():
+			continue
+		claims[slot].arrival_line = lines[0]
+		claims[slot].reaction_approved = lines[1]
+		claims[slot].reaction_denied = lines[2]
+
+
+## What dealing needs to know about each patient of a day, slot by slot: {} for
+## the scripted case and the player, who bring their own lines.
+func _profile(day: int, claims: Array[Claim]) -> Array[Dictionary]:
+	var patients: Array[Dictionary] = []
+	for slot in claims.size():
+		var c := claims[slot]
+		if c.scripted_id != "" or c.is_player:
+			patients.append({})
+		else:
+			patients.append({"place": week_index(day, slot), "tier": clampi(c.priority, 0, 2), "parent": c.parent_speaks, "dx": c.diagnosis_id, "first": c.first_name()})
+	return patients
+
+
+func _day_profile(day: int) -> Array[Dictionary]:
+	if not _profiles.has(day):
+		_profiles[day] = _profile(day, _generate_raw(day))
+	var cached: Array[Dictionary] = _profiles[day]
+	return cached
+
+
+## One patient's [arrival line, approved reaction, denied reaction], or nothing
+## for a patient with lines of their own. The arrival line is one for their
+## diagnosis DX_LINE_SHARE of the time, while that diagnosis's lines last, and
+## otherwise the next card from the priority deck.
+func _deal_patient(patient: Dictionary, dealt: Dictionary) -> PackedStringArray:
+	if patient.is_empty():
+		return PackedStringArray()
+	var parent: bool = patient["parent"]
+	var tier: int = patient["tier"]
+	var voice := "parent" if parent else "adult"
+	var arrival := ""
+	var specific := Lines.dx_pool(patient["dx"], parent)
+	var dx_key := "dx:%s:%s" % [patient["dx"], voice]
+	if not specific.is_empty() and int(dealt.get(dx_key, 0)) < specific.size():
+		var roll := RandomNumberGenerator.new()
+		roll.seed = hash([run_seed, "dx_line", patient["place"]])
+		if roll.randf() < DX_LINE_SHARE:
+			arrival = _deal_line(dx_key, specific, dealt)
+	if arrival == "":
+		arrival = _deal_line("arrival:%s:%d" % [voice, tier], Lines.arrival_pool(tier, parent), dealt)
+	if parent:
+		arrival = Lines.fill_child(arrival, patient["first"])
+	var lines := PackedStringArray([arrival])
+	for approved: bool in [true, false]:
+		var kind := "approved" if approved else "denied"
+		var key := ("%s:parent" % kind) if parent else ("%s:adult:%d" % [kind, tier])
+		lines.append(_deal_line(key, Lines.reaction_pool(tier, approved, parent), dealt))
+	return lines
+
+
+## The next card from deck `key` (shuffled once per run from `pool`). The deck
+## starts over, in the same order, once every card has been dealt.
+func _deal_line(key: String, pool: Array, dealt: Dictionary) -> String:
+	if pool.is_empty():
+		return ""
+	if not _decks.has(key):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([run_seed, "deck", key])
+		_decks[key] = _shuffled(pool, rng)
+	var deck: Array = _decks[key]
+	var n := int(dealt.get(key, 0))
+	dealt[key] = n + 1
+	return deck[n % deck.size()]
+
+
+## A Fisher-Yates shuffle driven by `rng` (Array.shuffle uses the global one).
+static func _shuffled(items: Array, rng: RandomNumberGenerator) -> Array:
+	var out := items.duplicate()
+	for i in range(out.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var swap: Variant = out[i]
+		out[i] = out[j]
+		out[j] = swap
+	return out

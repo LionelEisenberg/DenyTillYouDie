@@ -18,5 +18,7 @@ Settled in one round of 10 questions on 2026-11-03. Everything else is the build
 ## Open / deferred
 - Windows export — **assumed** none: only 4.3 and 4.4.1 export templates are installed, not 4.7.2. Run from the Godot 4.7 editor.
 - Old project in `deny-'til-you-die/` — **assumed** left untouched; the new game lives in `game/`.
-- Music — **assumed** none. Synthesized sound effects only.
-- Settings menu, rebinding and localization — **assumed** out of scope for the MVP.
+- Music — **revised in the improvement pass:** still no music tracks, but synthesized room tone per screen and an 8 kHz hold-music loop on the title and agreement screens, all generated in code (`Ambience`).
+- Settings — **revised in the improvement pass:** an Esc break menu with volume, mute, fullscreen, reduce motion, a how-to-play card and quit to title, saved in `user://settings.cfg` (`Settings`). Rebinding and localization stay out of scope.
+- Endings — **revised in the improvement pass:** seven, not five. Approving your own claim gets you fired unless someone owes you: R.H. (you approved his mother) or Dale (you approved his claim).
+- Training — day 1's first two patients are a coached walkthrough, skippable. A reload of day 1 replays it (no run-level "training seen" flag).

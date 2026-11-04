@@ -3,10 +3,15 @@ extends PanelContainer
 ## One clickable line on a document: a small caption and a value. In inspect mode
 ## it highlights on hover and reports clicks; otherwise clicks fall through to the
 ## document so the paper can be dragged.
+##
+## The pointer says which: a move hand over paper, a crosshair over a row you can
+## cite. A miss (Mark.INVALID) shakes the whole document, never just the row.
 
 signal clicked(row: FieldRow)
 
 enum Mark { NONE, HOVER, SELECTED, VALID, INVALID }
+
+const CAPTION_WIDTH := 150.0
 
 var key: String = ""
 var inspect: bool = false
@@ -22,7 +27,7 @@ static func wrap(content: Control, evidence_key: String) -> FieldRow:
 	return row
 
 
-static func create(caption: String, value: String, evidence_key: String, value_color: Color = Palette.INK, value_size: int = UiTheme.SIZE_BODY) -> FieldRow:
+static func create(caption: String, value: String, evidence_key: String, value_color: Color = Palette.INK, value_size: int = UiTheme.SIZE_BODY, caption_width: float = CAPTION_WIDTH) -> FieldRow:
 	var row := FieldRow.new()
 	row.key = evidence_key
 	var box := HBoxContainer.new()
@@ -30,7 +35,7 @@ static func create(caption: String, value: String, evidence_key: String, value_c
 	box.add_theme_constant_override("separation", 12)
 	if caption != "":
 		var cap := UiTheme.label(caption, UiTheme.SIZE_SMALL, Palette.INK_FADED)
-		cap.custom_minimum_size = Vector2(150, 0)
+		cap.custom_minimum_size = Vector2(caption_width, 0)
 		cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		box.add_child(cap)
 	var val := UiTheme.label(value, value_size, value_color)
@@ -39,6 +44,10 @@ static func create(caption: String, value: String, evidence_key: String, value_c
 	box.add_child(val)
 	row.add_child(box)
 	return row
+
+
+func _init() -> void:
+	mouse_default_cursor_shape = Control.CURSOR_MOVE
 
 
 func _ready() -> void:
@@ -56,12 +65,26 @@ func set_inspect(on: bool) -> void:
 	inspect = on
 	if not on and _mark == Mark.SELECTED:
 		_mark = Mark.NONE
+	set_cursor_for(false)
 	_refresh()
+
+
+## The pointer over this row: a crosshair while inspecting, the paper's move hand
+## otherwise, and a closed hand while its paper is being dragged.
+func set_cursor_for(dragging: bool) -> void:
+	if dragging:
+		mouse_default_cursor_shape = Control.CURSOR_DRAG
+	else:
+		mouse_default_cursor_shape = Control.CURSOR_CROSS if inspect else Control.CURSOR_MOVE
 
 
 func set_mark(mark: Mark) -> void:
 	_mark = mark
 	_refresh()
+	if mark == Mark.INVALID:
+		var doc := _document()
+		if doc:
+			doc.shake()
 
 
 func get_mark() -> Mark:
@@ -75,6 +98,14 @@ func _gui_input(event: InputEvent) -> void:
 	if mb and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 		accept_event()
 		clicked.emit(self)
+
+
+## The sheet this row is printed on.
+func _document() -> DocumentView:
+	var node := get_parent()
+	while node != null and not (node is DocumentView):
+		node = node.get_parent()
+	return node as DocumentView
 
 
 func _refresh() -> void:

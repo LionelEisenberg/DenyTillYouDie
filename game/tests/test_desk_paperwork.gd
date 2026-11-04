@@ -82,12 +82,12 @@ func test_early_treatment_line_is_body_size() -> void:
 
 func test_citation_slip_counts_down_the_free_warnings() -> void:
 	var first := Paperwork.citation_slip(1, 0)
-	t.ok(_texts(first).has("Warning 1 of %d. One more before fines start." % Economy.FREE_WARNINGS), "first warning: %s" % _texts(first))
+	t.ok(_texts(first).has("Warning 1 of %d today." % Economy.FREE_WARNINGS), "first warning: %s" % _texts(first))
 	first.free()
 	var last := Paperwork.citation_slip(Economy.FREE_WARNINGS, 0)
-	var last_line := "Warning %d of %d. Further citations today will be fined." % [Economy.FREE_WARNINGS, Economy.FREE_WARNINGS]
+	var last_line := "Warning %d of %d today. Further citations will be fined %s." % [Economy.FREE_WARNINGS, Economy.FREE_WARNINGS, UiTheme.money(Economy.CITATION_FINE)]
 	t.ok(_texts(last).has(last_line), "last free warning: %s" % _texts(last))
 	last.free()
 	var fined := Paperwork.citation_slip(Economy.FREE_WARNINGS + 1, Economy.CITATION_FINE)
-	t.ok(_texts(fined).has("Fine deducted: %s" % UiTheme.money(Economy.CITATION_FINE)), "fine: %s" % _texts(fined))
+	t.ok(_texts(fined).has("Fine deducted: %s." % UiTheme.money(Economy.CITATION_FINE)), "fine: %s" % _texts(fined))
 	fined.free()

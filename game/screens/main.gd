@@ -1,16 +1,22 @@
 extends Control
-## Screen flow: title -> agreement -> [paper -> memo -> desk -> ledger] x7 -> ending.
+## Screen flow: title -> agreement -> [day card -> paper -> memo -> desk -> ledger] x7 -> ending.
 ## An enum state machine; each screen emits `done` and this decides what's next.
 
-enum Screen { TITLE, AGREEMENT, PAPER, MEMO, DESK, LEDGER, ENDING }
+enum Screen { TITLE, AGREEMENT, PAPER, MEMO, DESK, LEDGER, ENDING, DAY_CARD }
 
 const FADE_TIME := 0.25
+## Black between the stamp on your own claim and the last front page.
+const CUT_HOLD := 2.0
 
 var current: ScreenBase
 var current_screen: Screen = Screen.TITLE
-## Tests set this to skip fades and pass it on to each screen.
+## Tests set this to skip fades and day cards, and pass it on to each screen.
 var fast: bool = false
 var _fade: ColorRect
+var _fade_tween: Tween
+## Bumped by every go(). A transition still waiting on a fade or the cut's hold
+## gives up when a newer one has started.
+var _nav: int = 0
 
 
 func _ready() -> void:
@@ -28,16 +34,35 @@ func _ready() -> void:
 	go(Screen.TITLE)
 
 
-func go(screen: Screen) -> void:
+## Fades to `screen`. With `cut`, the old screen drops to black at once and
+## the black holds CUT_HOLD seconds before the new screen fades in.
+func go(screen: Screen, cut: bool = false) -> void:
+	_nav += 1
+	var nav := _nav
 	# The fade swallows clicks while it's up, and no button holds keyboard focus
 	# until on_shown(), once the new screen is fully visible.
 	_block_input(true)
-	if is_inside_tree():
-		get_viewport().gui_release_focus()
-	if not fast and is_inside_tree():
-		var out := create_tween()
-		out.tween_property(_fade, "color:a", 1.0, FADE_TIME)
-		await out.finished
+	_kill_fade()
+	_release_own_focus()
+	# The screen on its way out (a day card still counting down, say) can no
+	# longer move the flow on.
+	if is_instance_valid(current):
+		_detach(current)
+	if cut:
+		_fade.color.a = 1.0
+		if current:
+			current.queue_free()
+			current = null
+		if not fast and is_inside_tree():
+			await get_tree().create_timer(CUT_HOLD, false).timeout
+			if nav != _nav:
+				return
+	elif not fast and is_inside_tree():
+		_fade_tween = create_tween()
+		_fade_tween.tween_property(_fade, "color:a", 1.0, FADE_TIME)
+		await _fade_tween.finished
+		if nav != _nav:
+			return
 	if current:
 		current.queue_free()
 	current_screen = screen
@@ -50,19 +75,31 @@ func go(screen: Screen) -> void:
 	if fast or not is_inside_tree():
 		_fade.color.a = 0.0
 	else:
-		var back := create_tween()
-		back.tween_property(_fade, "color:a", 0.0, FADE_TIME)
-		await back.finished
-	if not is_instance_valid(shown) or shown != current:
+		_fade_tween = create_tween()
+		_fade_tween.tween_property(_fade, "color:a", 0.0, FADE_TIME)
+		await _fade_tween.finished
+	if nav != _nav or not is_instance_valid(shown) or shown != current:
 		return
 	_block_input(false)
 	shown.on_shown()
+
+
+## For the Esc menu's QUIT TO TITLE: drops whatever fade is under way, unpauses
+## and goes to the title. The save is left alone, so Continue resumes the
+## morning it was written.
+func quit_to_title() -> void:
+	_kill_fade()
+	if is_inside_tree():
+		get_tree().paused = false
+	go(Screen.TITLE)
 
 
 func _make(screen: Screen) -> ScreenBase:
 	match screen:
 		Screen.AGREEMENT:
 			return AgreementScreen.new()
+		Screen.DAY_CARD:
+			return DayCardScreen.new()
 		Screen.PAPER:
 			return NewspaperScreen.new()
 		Screen.MEMO:
@@ -89,24 +126,64 @@ func _on_done(payload: Dictionary, from: Screen) -> void:
 			else:
 				GameState.new_run(String(payload.get("name", "")))
 				_morning()
+		Screen.DAY_CARD:
+			_paper_or_memo()
 		Screen.PAPER:
 			go(Screen.MEMO)
 		Screen.MEMO:
 			go(Screen.DESK)
 		Screen.DESK:
-			go(Screen.ENDING if GameState.run.ending != "" else Screen.LEDGER)
+			var over := GameState.run.ending != ""
+			# The stamp on your own claim cuts straight to black.
+			go(Screen.ENDING if over else Screen.LEDGER, over and bool(payload.get("cut", false)))
 		Screen.LEDGER:
 			if String(payload.get("ending", "")) != "":
 				go(Screen.ENDING)
 			else:
 				_morning()
 		Screen.ENDING:
-			go(Screen.TITLE)
+			if String(payload.get("action", "")) == "retry" and GameState.load_retry(int(payload.get("day", GameState.retry_day()))):
+				_morning()
+			else:
+				go(Screen.TITLE)
 
 
+## Every morning (a new week, Continue, the night, a retry) opens on its day
+## card, then the paper (from day 2) and the memo. Fast mode skips the card.
 func _morning() -> void:
+	if fast:
+		_paper_or_memo()
+	else:
+		go(Screen.DAY_CARD)
+
+
+func _paper_or_memo() -> void:
 	var paper: Dictionary = GameState.run.morning.get("paper", {})
 	go(Screen.MEMO if paper.is_empty() else Screen.PAPER)
+
+
+func _kill_fade() -> void:
+	if _fade_tween and _fade_tween.is_valid():
+		_fade_tween.kill()
+	_fade_tween = null
+
+
+## Stops listening to `screen`'s done signal.
+func _detach(screen: ScreenBase) -> void:
+	for connection: Dictionary in screen.done.get_connections():
+		var callable: Callable = connection["callable"]
+		if callable.get_object() == self:
+			screen.done.disconnect(callable)
+
+
+## Takes keyboard focus off the screens this flow shows. Focus held outside it
+## (the Esc menu, on its own layer) stays where it is.
+func _release_own_focus() -> void:
+	if not is_inside_tree():
+		return
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused != null and is_ancestor_of(focused):
+		focused.release_focus()
 
 
 ## The fade rect stops the mouse while it covers the screen, and lets it

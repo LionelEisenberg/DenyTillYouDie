@@ -10,10 +10,12 @@ How the code is organized, the conventions it follows, and the traps already fou
 | `content/` | Tables and text: procedures, diagnoses, providers, names, rules, patient lines, news pools, scripted cases | Data plus tiny helpers. |
 | `ui/` | Widgets built in code: documents, field rows, rulebook, portraits, stamps, meters, palette and theme | Each widget is a `class_name` script. No game rules. |
 | `screens/` | One `ScreenBase` per screen, plus `main.gd`, the enum state machine that swaps them | Screens call `GameState`; they emit `done(payload)` and `main.gd` decides what's next. |
-| `autoload/` | `GameState` (the run, today's claims, save/load) and `Sfx` (synthesized sounds) | Keep autoloads thin; rules belong in `core/`. |
+| `autoload/` | `GameState` (the run, today's claims, save/load, retry and outcome records), `Sfx` (synthesized sound effects), `Ambience` (room tone, crowd and hold music, picked by the current screen's class name) and `Settings` (volume, mute, fullscreen, reduce motion, the Esc break menu, button clacks) | Keep autoloads thin; rules belong in `core/`. |
 | `tests/` | Custom headless runner, unit/flow/input tests, balance simulation, screenshot tour | See Testing. |
 
-Data flow for one patient: `GameState.begin_day()` generates `claims_today` → the desk shows a `Claim` through `Paperwork` documents → a citation is checked by `RuleChecker.check_citation` → the stamp calls `GameState.decide()` → `ShiftLogic.apply_decision` updates money, discontent and stats → at night `NightLogic.close_shift` and `apply_ledger` resolve appeals, deaths, family, events and write tomorrow's paper and memo.
+Data flow for one patient: `GameState.begin_day()` generates `claims_today` → the desk shows a `Claim` through `Paperwork` documents (plus a scripted case's exhibit) → a citation is checked by `RuleChecker.check_citation` → the stamp calls `GameState.decide()` → `ShiftLogic.apply_decision` updates money, discontent and stats and writes a decision record → at night `NightLogic.close_shift` builds the ledger (pay lines, carbon copies, bills, the household event) and `apply_ledger` settles the bills the player ticked, resolves appeals, deaths, family and events, and writes tomorrow's paper and memo.
+
+Screen order: title → agreement → (each day) day card → paper (none on day 1) → memo → desk → ledger → … → ending. `main.gd` owns the order; a day-7 desk sends `{"cut": true}` after the player's own claim, which cuts straight to black and the ending.
 
 Signals go up, calls go down. There is no global event bus.
 
@@ -29,6 +31,12 @@ Signals go up, calls go down. There is no global event bus.
 - **Containers reset child rotation and scale.** To tilt something inside a container, put it in a plain `Control` holder.
 - **Determinism:** randomness comes from `RandomNumberGenerator`s seeded from the run seed (plus day and purpose), so a reload replays the same day.
 - **Never name an enum `Expression`.** It collides with a built-in class (`PortraitView` uses `Mood`).
+- **Pausing:** the Esc menu sets `get_tree().paused`. Screen sequences wait through `ScreenBase.wait()` (and the desk's `_hold()`), which use `create_timer(s, false)` and so hold while paused. Anything that must run during a pause (the stamp hitstop's time-scale restore, the menu) is `PROCESS_MODE_ALWAYS`.
+- **Reduce motion:** `Settings` sets `Engine.get_meta("reduce_motion")`. Widgets read it with a `false` default and skip shakes, flights, flicker, walks and pulses, like fast mode does.
+- **Sounds:** call `Sfx.play(name)` with a name from `Sfx.NAMES`; `test_audio::test_every_sound_the_code_plays_exists` checks every literal. Every `Button` clacks on press unless it has the `silent` meta (stamps, ledger toggles, SKIP TRAINING).
+- **Screen entrances:** `ScreenBase` owns `sheet_in()`, `sheet_entrance()`, `add_lamp_pool()` and the `SHEET_*`/`LAMP_POOL_ALPHA` names; a subclass that redeclares one fails to compile.
+- **Portraits paint only through `PortraitView._b()`.** `NewsPhoto` halftones a portrait by overriding it, so a direct `draw_rect` in `_draw` would print untouched. `IdBadge` disables the portrait's process so photos never blink.
+- **Tool runs never touch the player's settings:** headless runs and `--script` runs don't read or write `user://settings.cfg` and never change the window.
 
 ## Tone
 
@@ -50,8 +58,12 @@ godot --path game --resolution 1920x1080 --script res://tests/screenshot_tour.gd
 - Tests that save use `gs.save_path_override = TestContext.save_path()`, a per-process path, so suites can run in parallel.
 - Screens have a `fast` flag that skips waits and tweens; tests set it.
 - Pushing mouse events: the headless window is 64x64, so convert canvas positions with `tree.root.get_final_transform() * (control.get_global_transform_with_canvas() * local_pos)`. See `test_desk_input.gd`.
+- Pushing keys: with `Settings` registered, Esc (outside inspect mode) opens the break menu and pauses the tree, and M toggles mute. Close the menu and unpause in `after_each`, or turn off `Settings`' unhandled input while a test only asks whether a screen lets a key through (`test_story_ledger.gd`). A test that adds a `DeskScreen` itself must call `on_shown()` before Enter or N does anything.
+- Free what you build: a `DocumentView` (or any node) a test creates outside the tree leaks. Run the suite with `--verbose` and look for `Leaked instance` lines when the exit report mentions leaks.
+- Retry and outcome records live beside the save (`<save>_retry.json`, `<save>_record.cfg`); suites that reset `save_path_override` clean them up.
 - A script passed with `--script` is compiled before autoloads exist, so it can't reference `GameState` by name. Load such code at runtime (that's why `screenshot_tour.gd` loads `tour_runner.gd`).
 - `.godot/` is gitignored. Commit the `.uid` and `.import` files Godot generates.
+- Run the screenshot tour at both 1920x1080 and 1600x900 (the default window, a fractional canvas scale) and look at every PNG.
 
 ## Balance
 

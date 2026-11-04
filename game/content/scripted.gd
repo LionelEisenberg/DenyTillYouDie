@@ -5,6 +5,12 @@ class_name Scripted
 ## Optional keys: "diagnosis" rewords the claim's diagnosis label; "member_years"
 ## puts MEMBER SINCE that many years before the date of service, for stories that
 ## say how long someone paid in.
+##
+## "exhibit" is the one personal paper a patient brings (Claim.exhibit, drawn by
+## Paperwork.exhibit): kind "log", "letter" or "badge"; title, subtitle, rows of
+## [caption, value] ("{date}" prints the date of service), body, signature. A
+## "log" lists [days before the date of service, entry] pairs as dated rows.
+## "image": "ultrasound" adds a printed scan. None of it is ever evidence.
 
 const CASES: Array[Dictionary] = [
 	{
@@ -12,17 +18,39 @@ const CASES: Array[Dictionary] = [
 		"dx": "heart_attack", "rule": "R-01", "provider": "St. Agnes Medical Center",
 		"member_years": 19,
 		"line": "My premium payment bounced while I was in the ICU. I wasn't awake to fix it.",
+		"exhibit": {
+			"kind": "log", "title": "ST. AGNES MEDICAL CENTER - ICU NURSING LOG",
+			"subtitle": "Patient: BRENNAN, WALTER  -  Bed 4",
+			"log": [
+				[-5, "Admitted. Intubated, sedated."],
+				[-4, "Sedated. Daughter at bedside."],
+				[-3, "Sedated. No response to voice."],
+				[-2, "Sedation lowered. Opens eyes."],
+				[-1, "Extubated. Alert. Asked what day it was."],
+			],
+		},
 	},
 	{
 		"id": "lily", "day": 2, "slot": 3, "name": "Lily Navarro", "age": 7,
 		"dx": "leukemia", "rule": "R-02", "provider": "University Children's Hospital",
 		"line": "It's the only children's cancer center in the state. Where else could we take her?",
+		"exhibit": {
+			"kind": "letter", "title": "UNIVERSITY CHILDREN'S HOSPITAL",
+			"subtitle": "Division of Pediatric Oncology",
+			"rows": [["DATE", "{date}"], ["RE", "Lily Navarro, age 7"]],
+			"body": "To whom it may concern: Lily is being treated for acute leukemia. Ours is the only pediatric oncology program in the state. No hospital in your network offers this care. Her treatment should not be interrupted.",
+			"signature": "Dr. M. Adeyemi",
+		},
 	},
 	{
 		"id": "dale", "day": 3, "slot": 4, "name": "Dale Pruitt", "age": 44,
 		"dx": "appendicitis", "rule": "R-03", "provider": "Mercer County Hospital",
 		"claim_name": "Dail Pruitt",
 		"line": "Hey. Dale, from Desk 12. Small world, huh?",
+		"exhibit": {
+			"kind": "badge", "title": "BENEVOLENCE MUTUAL  -  STAFF",
+			"rows": [["NAME", "DALE PRUITT"], ["POSITION", "CLAIMS ADJUSTER #4470"], ["DESK", "12"]],
+		},
 	},
 	{
 		"id": "eleanor", "day": 4, "slot": 3, "name": "Eleanor Hargrove", "age": 79,
@@ -34,12 +62,25 @@ const CASES: Array[Dictionary] = [
 		"id": "priya", "day": 5, "slot": 5, "name": "Priya Raman", "age": 31,
 		"dx": "pregnancy", "rule": "R-05", "provider": "St. Agnes Medical Center",
 		"line": "The baby's okay. They just wanted to monitor overnight. That's all this is.",
+		"exhibit": {
+			"kind": "log", "image": "ultrasound",
+			"title": "ST. AGNES MEDICAL CENTER - OBSTETRIC ULTRASOUND",
+			"rows": [["PATIENT", "RAMAN, PRIYA"], ["FETAL HEART RATE", "142 BPM"], ["DUE DATE", "03/19/2026"]],
+			"body": "Everything looks good. Rest.",
+		},
 	},
 	{
 		"id": "marcus", "day": 6, "slot": 4, "name": "Marcus Bell", "age": 52,
 		"dx": "colon_cancer", "diagnosis": "Colon cancer, stage IV", "rule": "R-06", "provider": "Westbrook Cancer Institute",
 		"addon": "immunotherapy_exp",
 		"line": "It's the only thing left. The trial numbers are good.",
+		"exhibit": {
+			"kind": "letter", "title": "WESTBROOK CANCER INSTITUTE",
+			"subtitle": "Department of Medical Oncology",
+			"rows": [["DATE", "{date}"], ["RE", "Marcus Bell"]],
+			"body": "Mr. Bell's cancer has progressed through standard treatment. He qualifies for our immunotherapy trial, and in my judgment it is his last reasonable option. I recommend it without reservation.",
+			"signature": "Dr. K. Lindgren",
+		},
 	},
 ]
 

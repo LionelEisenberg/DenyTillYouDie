@@ -120,6 +120,7 @@ func _patient_lines() -> PackedStringArray:
 	for code: String in Lines.CODE_SPECIFIC:
 		for line: String in Lines.CODE_SPECIFIC[code]:
 			lines.append(line)
+	lines.append_array(_dx_lines())
 	for case_data: Dictionary in Scripted.CASES:
 		lines.append(case_data["line"])
 	for id: String in Scripted.REACTIONS:
@@ -144,6 +145,72 @@ func test_chronic_diagnoses_have_history_labels() -> void:
 	for dx: Dictionary in Medical.DIAGNOSES:
 		if dx["chronic"]:
 			t.ok(dx["history_label"] != "", "%s needs a history label" % dx["id"])
+
+
+## The first five letters of every word of five letters or more.
+func _stems(text: String) -> Dictionary:
+	var stems := {}
+	for word in RegEx.create_from_string("[a-z]+").search_all(text.to_lower()):
+		var w := word.get_string()
+		if w.length() >= 5:
+			stems[w.left(5)] = true
+	return stems
+
+
+## "The claimed condition, sometimes under another name" has to be readable off
+## the paper: the history label shares a word stem with the claim's diagnosis.
+func test_history_labels_share_a_word_with_the_diagnosis() -> void:
+	for dx: Dictionary in Medical.DIAGNOSES:
+		if not dx["chronic"]:
+			continue
+		var shared := false
+		var label_stems := _stems(dx["label"])
+		for stem: String in _stems(dx["history_label"]):
+			shared = shared or label_stems.has(stem)
+		t.ok(shared, "%s: '%s' and '%s' share no 5-letter word stem" % [dx["id"], dx["label"], dx["history_label"]])
+	t.eq(Medical.diagnosis("afib")["history_label"], "Atrial flutter")
+
+
+func _dx_lines() -> PackedStringArray:
+	var lines: PackedStringArray = []
+	for id: String in Lines.DX_ARRIVAL:
+		for voice: String in Lines.DX_ARRIVAL[id]:
+			for line: String in Lines.DX_ARRIVAL[id][voice]:
+				lines.append(line)
+	return lines
+
+
+func test_line_pools_are_deep_enough_for_a_week() -> void:
+	var arrival_min := [24, 19, 16]
+	var denied_min := [14, 13, 13]
+	for tier in 3:
+		t.ok((Lines.ARRIVAL[tier] as Array).size() >= arrival_min[tier], "arrival tier %d: %d lines" % [tier, (Lines.ARRIVAL[tier] as Array).size()])
+		t.ok((Lines.DENIED[tier] as Array).size() >= denied_min[tier], "denied tier %d: %d lines" % [tier, (Lines.DENIED[tier] as Array).size()])
+	var all := _patient_lines()
+	t.ok(all.has("That's my number? Sorry. I've been here since eight."), "the ticket line names no number")
+	for line in all:
+		t.ok(not line.begins_with("Forty-one"), "no patient says the old ticket number")
+	var seen := {}
+	for pools: Array in [Lines.ARRIVAL, Lines.DENIED, Lines.APPROVED, Lines.ARRIVAL_PARENT]:
+		for pool: Array in pools:
+			for line: String in pool:
+				t.ok(not seen.has(line), "'%s' appears twice in the pools" % line)
+				seen[line] = true
+
+
+## Diagnosis lines name symptoms and moments, never a treatment that might be
+## missing from the bill. Parent lines speak of {child}; adult lines never do.
+func test_diagnosis_lines_name_no_treatment() -> void:
+	var treatments := RegEx.create_from_string("(?i)\\b(mri|ct|scan|x-?ray|surgery|operation|cast|stitch(es)?|chemo\\w*|dialysis|stent|infusion|iv|drip|antibiotics?|inhaler|nebulizer|insulin|icu|ambulance|therapy|injection|pills?|meds|medication|prescription)\\b")
+	for id: String in Lines.DX_ARRIVAL:
+		for voice: String in Lines.DX_ARRIVAL[id]:
+			for line: String in Lines.DX_ARRIVAL[id][voice]:
+				var hit := treatments.search(line)
+				t.ok(hit == null, "%s: \"%s\" names \"%s\"" % [id, line, hit.get_string() if hit else ""])
+				if voice == "parent":
+					t.ok(line.contains("{child}"), "%s parent line speaks of the child: %s" % [id, line])
+				else:
+					t.ok(not line.contains("{child}"), "%s adult line: %s" % [id, line])
 
 
 func test_providers_disjoint() -> void:

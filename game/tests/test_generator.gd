@@ -17,6 +17,265 @@ func _fingerprint(claims: Array[Claim]) -> String:
 	return ",".join(parts)
 
 
+## Everything a patient brings to the window, lines and exhibit included.
+func _full_fingerprint(claims: Array[Claim]) -> String:
+	var parts: PackedStringArray = []
+	for c in claims:
+		parts.append("%s|%s|%s|%d|%d|%s|%s|%s|%s" % [c.claim_no, c.card_name, c.name, c.amount, c.portrait_seed,
+			c.arrival_line, c.reaction_approved, c.reaction_denied, str(c.exhibit)])
+	return "\n".join(parts)
+
+
+func _rules_of(c: Claim, day: int) -> Array[String]:
+	var ids: Array[String] = []
+	for v in RuleChecker.violations(c, day):
+		ids.append(v["rule"])
+	return ids
+
+
+func _breaks(c: Claim, rule_id: String, day: int) -> bool:
+	return _rules_of(c, day).has(rule_id)
+
+
+func _is_random(c: Claim) -> bool:
+	return c.scripted_id == "" and not c.is_player
+
+
+# --- training claims and the new rule's example (item 1) -------------------
+
+## Day 1 teaches the desk: the first patient is a plain lapse with nothing else
+## to find, the second is clean, and Walt still comes third.
+func test_day_one_opens_with_a_lapse_then_a_clean_claim() -> void:
+	var year_end := DateUtil.from_ymd(2026, 12, 31)
+	var failures: PackedStringArray = []
+	for seed_value in 300:
+		var claims := ClaimGenerator.new(seed_value, "Pat Doe").generate_day(1)
+		var lapsed := claims[0]
+		var clean := claims[1]
+		var gap := lapsed.date_of_service - lapsed.coverage_through
+		var problems: PackedStringArray = []
+		if _rules_of(lapsed, 7) != (["R-01"] as Array[String]):
+			problems.append("slot 0 breaks %s" % [_rules_of(lapsed, 7)])
+		if gap < 10 or gap > 40:
+			problems.append("slot 0 lapsed %d days before service" % gap)
+		if not _rules_of(clean, 7).is_empty():
+			problems.append("slot 1 breaks %s" % [_rules_of(clean, 7)])
+		if clean.coverage_through != year_end:
+			problems.append("slot 1 coverage ends %s" % DateUtil.fmt(clean.coverage_through))
+		for c: Claim in [lapsed, clean]:
+			if c.priority != Claim.Priority.ROUTINE or c.is_child() or not _is_random(c):
+				problems.append("%s is %s, age %d, scripted '%s'" % [c.claim_no, c.priority_name(), c.age, c.scripted_id])
+			# No decoys: no prior-auth procedure, no record of the claimed condition.
+			if c.prior_auth != "":
+				problems.append("%s carries a prior-auth decoy" % c.claim_no)
+			for entry: Dictionary in c.history:
+				if entry["condition"] == c.condition:
+					problems.append("%s carries a history decoy" % c.claim_no)
+		if claims[2].scripted_id != "walt":
+			problems.append("Walt is not third")
+		if not problems.is_empty():
+			failures.append("seed %d: %s" % [seed_value, "; ".join(problems)])
+	t.eq(failures.size(), 0, "\n".join(failures))
+
+
+## Days 2-6: whenever anyone that day breaks the new rule, the first patient
+## does. Nobody is regenerated: the first later patient who breaks it just
+## trades places with the first, and the scripted case keeps its slot.
+func test_the_new_rule_is_shown_by_the_first_patient() -> void:
+	var swapped := 0
+	var failures: PackedStringArray = []
+	for seed_value in 300:
+		var gen := ClaimGenerator.new(seed_value, "Pat Doe")
+		for day in range(2, 7):
+			var rule: String = Rules.new_rule_on(day)["id"]
+			var claims := gen.generate_day(day)
+			var case_data := Scripted.for_day(day)
+			# The order they were generated in: each slot's name from the week's
+			# list (names are unique, so they identify the patients).
+			var by_name := {}
+			for c in claims:
+				by_name[c.card_name] = c
+			var order: PackedStringArray = []
+			var raw_order: PackedStringArray = []
+			var raw: Array[Claim] = []
+			for i in claims.size():
+				order.append(claims[i].card_name)
+				raw_order.append(case_data["name"] if i == int(case_data["slot"]) else gen.week_names()[ClaimGenerator.week_index(day, i)])
+				if not by_name.has(raw_order[i]):
+					failures.append("seed %d day %d: %s is missing, so someone was replaced" % [seed_value, day, raw_order[i]])
+					break
+				raw.append(by_name[raw_order[i]])
+			if raw.size() != claims.size():
+				continue
+			var expected := raw_order.duplicate()
+			if not _breaks(raw[0], rule, day):
+				for i in range(1, raw.size()):
+					if _is_random(raw[i]) and _breaks(raw[i], rule, day):
+						expected[0] = raw_order[i]
+						expected[i] = raw_order[0]
+						swapped += 1
+						break
+			if order != expected:
+				failures.append("seed %d day %d: order %s, expected %s" % [seed_value, day, order, expected])
+			var anyone := false
+			for c in claims:
+				anyone = anyone or (_is_random(c) and _breaks(c, rule, day))
+			if anyone and not _breaks(claims[0], rule, day):
+				failures.append("seed %d day %d: first patient doesn't break %s" % [seed_value, day, rule])
+			if claims[int(case_data["slot"])].scripted_id != case_data["id"]:
+				failures.append("seed %d day %d: %s moved" % [seed_value, day, case_data["id"]])
+	t.eq(failures.size(), 0, "\n".join(failures))
+	t.ok(swapped > 100, "patients moved up: %d" % swapped)
+
+
+func test_a_day_regenerates_identically() -> void:
+	for seed_value in [1, 77, 2026]:
+		for day in range(1, 8):
+			var gen := ClaimGenerator.new(seed_value, "Pat Doe")
+			t.eq(_full_fingerprint(gen.generate_day(day)), _full_fingerprint(gen.generate_day(day)), "seed %d day %d, same generator" % [seed_value, day])
+			t.eq(_full_fingerprint(ClaimGenerator.new(seed_value, "Pat Doe").generate_day(day)), _full_fingerprint(gen.generate_day(day)), "seed %d day %d, new generator" % [seed_value, day])
+
+
+# --- names and lines without repeats (item 5) -------------------------------
+
+func test_no_name_repeats_in_a_week() -> void:
+	var repeats: PackedStringArray = []
+	for seed_value in 200:
+		var gen := ClaimGenerator.new(seed_value, "Pat Doe")
+		var seen := {}
+		for day in range(1, 8):
+			for c in gen.generate_day(day):
+				if seen.has(c.card_name):
+					repeats.append("seed %d day %d: %s" % [seed_value, day, c.card_name])
+				seen[c.card_name] = true
+	t.eq(repeats.size(), 0, ", ".join(repeats))
+
+
+func test_week_names_leave_out_the_player_and_the_scripted_patients() -> void:
+	var names := ClaimGenerator.new(5, "Nobody").week_names()
+	t.ok(names.size() >= ClaimGenerator.week_index(8, 0), "a name for every patient: %d" % names.size())
+	var firsts := {}
+	for full in names:
+		firsts[full.get_slice(" ", 0)] = true
+	t.eq(firsts.size(), names.size(), "no first name twice")
+	# A player who happens to have one of those names never meets a namesake,
+	# however they typed it.
+	for pair: Array in [[names[3], names[3]], ["  %s " % names[7].to_upper(), names[7]]]:
+		var theirs := ClaimGenerator.new(5, pair[0]).week_names()
+		t.ok(not theirs.has(pair[1]), "'%s' is left out for player '%s'" % [pair[1], pair[0]])
+		t.eq(theirs.size(), names.size())
+	for case_data: Dictionary in Scripted.CASES:
+		for seed_value in 50:
+			t.ok(not ClaimGenerator.new(seed_value, "Pat Doe").week_names().has(case_data["name"]), "seed %d: %s" % [seed_value, case_data["name"]])
+
+
+## Which deck a dealt line came from, by the pools that hold it.
+func _deck_of(c: Claim, line: String, kind: String) -> String:
+	var voice := "parent" if c.parent_speaks else "adult"
+	var tier := clampi(c.priority, 0, 2)
+	if kind == "arrival":
+		var template := line.replace(c.first_name(), "{child}") if c.parent_speaks else line
+		if Lines.dx_pool(c.diagnosis_id, c.parent_speaks).has(template):
+			return "dx:%s:%s|%s" % [c.diagnosis_id, voice, template]
+		if Lines.arrival_pool(tier, c.parent_speaks).has(template):
+			return "arrival:%s:%d|%s" % [voice, tier, template]
+		return ""
+	var pool := Lines.reaction_pool(tier, kind == "approved", c.parent_speaks)
+	if not pool.has(line):
+		return ""
+	return ("%s:parent|%s" % [kind, line]) if c.parent_speaks else ("%s:adult:%d|%s" % [kind, tier, line])
+
+
+func _pool_size(deck: String) -> int:
+	var parts := deck.split(":")
+	match parts[0]:
+		"dx":
+			return Lines.dx_pool(parts[1], parts[2] == "parent").size()
+		"arrival":
+			return Lines.arrival_pool(int(parts[2]), parts[1] == "parent").size()
+	if parts[1] == "parent":
+		return Lines.reaction_pool(0, parts[0] == "approved", true).size()
+	return Lines.reaction_pool(int(parts[2]), parts[0] == "approved", false).size()
+
+
+## Every random patient gets an arrival line and both reactions, dealt from
+## decks: within a week a line comes round again only once its deck is used up.
+func test_lines_repeat_only_after_their_deck_runs_out() -> void:
+	var failures: PackedStringArray = []
+	var dx_lines := 0
+	var dx_eligible := 0
+	for seed_value in 200:
+		var gen := ClaimGenerator.new(seed_value, "Pat Doe")
+		var drawn := {}
+		for day in range(1, 8):
+			for c in gen.generate_day(day):
+				if not _is_random(c):
+					t.eq(c.reaction_approved + c.reaction_denied, "", "%s keeps its own reactions" % c.scripted_id)
+					continue
+				for kind: String in ["arrival", "approved", "denied"]:
+					var line: String = {"arrival": c.arrival_line, "approved": c.reaction_approved, "denied": c.reaction_denied}[kind]
+					var tagged := _deck_of(c, line, kind)
+					if tagged == "":
+						failures.append("seed %d: %s line '%s' is in no pool for %s" % [seed_value, kind, line, c.claim_no])
+						continue
+					var deck := tagged.get_slice("|", 0)
+					if not drawn.has(deck):
+						drawn[deck] = []
+					(drawn[deck] as Array).append(tagged.get_slice("|", 1))
+				if not Lines.dx_pool(c.diagnosis_id, c.parent_speaks).is_empty():
+					dx_eligible += 1
+					if _deck_of(c, c.arrival_line, "arrival").begins_with("dx:"):
+						dx_lines += 1
+		for deck: String in drawn:
+			var lines: Array = drawn[deck]
+			var distinct := {}
+			for line: String in lines:
+				distinct[line] = true
+			var expected := mini(lines.size(), _pool_size(deck))
+			if distinct.size() != expected:
+				failures.append("seed %d %s: %d dealt, %d distinct, deck of %d" % [seed_value, deck, lines.size(), distinct.size(), _pool_size(deck)])
+	t.eq(failures.size(), 0, "\n".join(failures.slice(0, 20)))
+	var share := float(dx_lines) / maxi(dx_eligible, 1)
+	t.ok(share > 0.2 and share < 0.45, "diagnosis lines used for %d of %d eligible patients" % [dx_lines, dx_eligible])
+
+
+## A day generated on its own deals the same names and lines as that day in a
+## full week, because both are dealt by the patient's place in the week.
+func test_a_day_alone_matches_the_full_week() -> void:
+	for seed_value in [3, 77, 2026]:
+		var week := ClaimGenerator.new(seed_value, "Pat Doe")
+		var full := {}
+		for day in range(1, 8):
+			full[day] = _full_fingerprint(week.generate_day(day))
+		for day in [5, 1, 7, 3]:
+			t.eq(_full_fingerprint(ClaimGenerator.new(seed_value, "Pat Doe").generate_day(day)), full[day], "seed %d day %d" % [seed_value, day])
+
+
+func test_diagnosis_lines_belong_to_real_diagnoses() -> void:
+	t.ok(Lines.DX_ARRIVAL.size() >= 15, "diagnoses with their own lines: %d" % Lines.DX_ARRIVAL.size())
+	for id: String in Lines.DX_ARRIVAL:
+		var dx := Medical.diagnosis(id)
+		t.ok(not dx.is_empty(), "'%s' is a diagnosis" % id)
+		var voices: Dictionary = Lines.DX_ARRIVAL[id]
+		for voice: String in voices:
+			t.ok(voice in ["adult", "parent"], "%s: voice %s" % [id, voice])
+			t.eq((voices[voice] as Array).size(), 2, "%s %s lines" % [id, voice])
+			t.ok(bool(dx.get("child_ok" if voice == "parent" else "adult_ok", false)), "%s can't have a %s voice" % [id, voice])
+
+
+## Random patients' arrival lines are dealt, so the desk never has to pick one.
+func test_random_patients_arrive_with_a_line_and_scripted_ones_with_theirs() -> void:
+	var gen := ClaimGenerator.new(41, "Pat Doe")
+	for day in range(1, 8):
+		for c in gen.generate_day(day):
+			t.ok(c.arrival_line != "", "%s has an arrival line" % c.claim_no)
+			if c.parent_speaks:
+				t.ok(c.arrival_line.contains(c.first_name()) or not c.arrival_line.contains("{child}"), "%s: %s" % [c.claim_no, c.arrival_line])
+			t.ok(not c.arrival_line.contains("{"), "%s: no placeholder left in '%s'" % [c.claim_no, c.arrival_line])
+			if c.scripted_id != "" and not c.is_player:
+				t.eq(c.arrival_line, Scripted.get_case(c.scripted_id)["line"])
+
+
 func test_deterministic_by_seed() -> void:
 	var a := ClaimGenerator.new(1234, "Pat Doe")
 	var b := ClaimGenerator.new(1234, "Pat Doe")

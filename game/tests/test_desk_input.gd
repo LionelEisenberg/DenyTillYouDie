@@ -175,3 +175,35 @@ func test_space_after_clicking_approve_inspects_and_stamps_nothing() -> void:
 	t.ok(desk.inspect, "Space toggles inspect")
 	t.ok(desk.active_claim() == claim, "the new claim is still open")
 	t.eq(gs.run.stats["processed"], 1, "and Space stamped nothing")
+
+
+## Picked up, the paper itself lifts (bigger, a longer shadow, a closed hand)
+## while the DocumentView the drag moves never scales; let go, it settles back
+## to exactly its own size.
+func test_a_held_paper_lifts_and_settles_back() -> void:
+	desk.call_next_patient()
+	await tree.process_frame
+	var doc := desk._claim_doc
+	doc.move_to_front()
+	await tree.process_frame
+	var box := doc.paper.get_theme_stylebox("panel") as StyleBoxFlat
+	t.eq(box.shadow_offset, Vector2(6, 6), "a paper at rest")
+	var grab := _screen_pos(doc, Vector2(doc.size.x / 2.0, 12))
+	_move(grab, grab)
+	_press(grab, true)
+	await tree.process_frame
+	t.ok(doc.is_dragging(), "grabbed")
+	t.near(doc.paper.scale.x, DocumentView.LIFT_SCALE, 0.0001, "the held paper is lifted")
+	t.eq(doc.scale, Vector2.ONE, "the DocumentView itself never scales")
+	t.eq(box.shadow_offset, Vector2(12, 12), "its shadow reaches further")
+	t.eq(doc.mouse_default_cursor_shape, Control.CURSOR_DRAG, "a closed hand while dragging")
+	t.eq(doc.find_row("claim.name").mouse_default_cursor_shape, Control.CURSOR_DRAG, "over its rows too")
+	_press(grab, false)
+	await tree.process_frame
+	t.ok(not doc.is_dragging(), "let go")
+	await tree.create_timer(0.3).timeout
+	t.eq(doc.paper.scale, Vector2.ONE, "settled back to its own size within 0.3 s")
+	t.eq(doc.overlay.scale, Vector2.ONE, "the stamp layer with it")
+	t.eq(box.shadow_offset, Vector2(6, 6), "shadow back")
+	t.eq(doc.mouse_default_cursor_shape, Control.CURSOR_MOVE, "an open hand again")
+	t.eq(doc.find_row("claim.name").mouse_default_cursor_shape, Control.CURSOR_MOVE)
