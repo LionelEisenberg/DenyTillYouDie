@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="12" fill="#2f3326"/>
+  <rect x="18" y="22" width="92" height="84" rx="4" fill="#e3d9bf"/>
+  <rect x="30" y="36" width="54" height="6" fill="#6b6553"/>
+  <rect x="30" y="50" width="68" height="6" fill="#6b6553"/>
+  <rect x="30" y="64" width="44" height="6" fill="#6b6553"/>
+  <g transform="rotate(-14 64 80)">
+    <rect x="24" y="66" width="80" height="30" fill="none" stroke="#a8332b" stroke-width="6"/>
+    <text x="64" y="89" font-family="monospace" font-size="20" font-weight="bold" fill="#a8332b" text-anchor="middle">DENIED</text>
+  </g>
+</svg>
